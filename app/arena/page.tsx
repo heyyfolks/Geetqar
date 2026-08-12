@@ -1,0 +1,3 @@
+import {Jukebox} from '@/components/jukebox'
+const tracks=['VELVET PLAY','STOLEN FROM THE DREAMS']
+export default function Arena(){return <main className="min-h-screen bg-black px-6 pb-24 pt-32 md:px-12"><div className="mx-auto max-w-6xl"><p className="text-[10px] tracking-[.4em] text-gold">GEETQAR / COMMUNITY</p><h1 className="mt-4 text-5xl font-bold tracking-tight md:text-7xl">The Arena.</h1><p className="mt-5 max-w-2xl text-sm leading-7 text-white/40">Listen together. Vote the next track. Talk about the music while it plays.</p><div className="mt-12"><Jukebox tracks={tracks}/></div></div></main>}
