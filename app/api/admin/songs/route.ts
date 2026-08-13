@@ -16,6 +16,8 @@ type Song = {
   updatedAt: string
 }
 
+type StorageClient = ReturnType<typeof createClient<any>>
+
 function config() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -41,7 +43,7 @@ function slugify(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80)
 }
 
-async function readSongs(db: ReturnType<typeof createClient>) {
+async function readSongs(db: StorageClient) {
   const { data } = await db.storage.from(BUCKET).download(META_PATH)
   if (!data) return [] as Song[]
   try {
@@ -50,13 +52,13 @@ async function readSongs(db: ReturnType<typeof createClient>) {
   } catch { return [] as Song[] }
 }
 
-async function writeSongs(db: ReturnType<typeof createClient>, songs: Song[]) {
+async function writeSongs(db: StorageClient, songs: Song[]) {
   const payload = Buffer.from(JSON.stringify({ songs }, null, 2), 'utf8')
   const { error } = await db.storage.from(BUCKET).upload(META_PATH, payload, { contentType: 'application/json', upsert: true })
   return error
 }
 
-async function withCoverUrls(db: ReturnType<typeof createClient>, songs: Song[]) {
+async function withCoverUrls(db: StorageClient, songs: Song[]) {
   return Promise.all(songs.map(async song => {
     let coverUrl = ''
     if (song.coverPath) {
