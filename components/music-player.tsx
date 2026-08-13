@@ -55,7 +55,7 @@ export function MusicPlayer({title='VELVET PLAY',src}:{title?:string;src?:string
   }
 
   const connected=Boolean(audioSrc)
-  return <div className="glass p-5 md:p-7">
+  return <div className="glass p-5 md:p-7" onClick={e=>e.stopPropagation()}>
     <audio ref={ref} src={audioSrc || undefined} preload="metadata" />
     <div className="flex items-center gap-4">
       <button onClick={toggle} disabled={!connected||loading} aria-label={connected?(playing?'Pause':'Play'):'Audio not connected'} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold text-black disabled:cursor-not-allowed disabled:opacity-40">{playing?<Pause size={17}/>:<Play size={17} fill="currentColor"/>}</button>
