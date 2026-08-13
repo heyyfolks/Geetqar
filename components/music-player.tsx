@@ -7,7 +7,7 @@ function trackSlug(title: string) {
   return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 }
 
-export function MusicPlayer({title='VELVET PLAY',src}:{title?:string;src?:string}){
+export function MusicPlayer({title='VELVET PLAY',src,onCover}:{title?:string;src?:string;onCover?:(url:string)=>void}){
   const ref=useRef<HTMLAudioElement>(null)
   const [playing,setPlaying]=useState(false)
   const [progress,setProgress]=useState(0)
@@ -24,6 +24,7 @@ export function MusicPlayer({title='VELVET PLAY',src}:{title?:string;src?:string
       .then(async r=>{
         const data=await r.json().catch(()=>({}))
         if(!r.ok) throw new Error(data.error || 'Master unavailable')
+        if(active && data.coverUrl && onCover) onCover(data.coverUrl)
         return data.url as string
       })
       .then(url=>{
@@ -33,7 +34,7 @@ export function MusicPlayer({title='VELVET PLAY',src}:{title?:string;src?:string
       .catch(e=>{ if(active){ setAudioSrc(''); setError(e instanceof Error ? e.message : 'Master unavailable') } })
       .finally(()=>{ if(active) setLoading(false) })
     return()=>{active=false}
-  },[title,src])
+  },[title,src,onCover])
 
   useEffect(()=>{
     const a=ref.current
