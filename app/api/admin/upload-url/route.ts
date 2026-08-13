@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const db = createClient(url, serviceKey, { auth: { persistSession: false } })
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
   const path = `masters/${crypto.randomUUID()}-${safeName}`
-  const { data, error } = await db.storage.from('audio-masters').createSignedUploadUrl(path)
+  const { data, error } = await db.storage.from('Music').createSignedUploadUrl(path)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ path, token: data.token })
 }
