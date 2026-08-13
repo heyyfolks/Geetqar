@@ -18,12 +18,17 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null)
   const fileName = body?.fileName
-  if (typeof fileName !== 'string' || !/^.+\.(wav|flac)$/i.test(fileName)) return NextResponse.json({ error: 'Only WAV/FLAC files are allowed.' }, { status: 400 })
-  if (fileName.length > 180) return NextResponse.json({ error: 'Filename is too long.' }, { status: 400 })
+  const kind = body?.kind === 'cover' ? 'cover' : 'master'
+  const trackSlug = typeof body?.trackSlug === 'string' ? body.trackSlug.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') : ''
+
+  if (typeof fileName !== 'string' || fileName.length > 180) return NextResponse.json({ error: 'Filename is invalid or too long.' }, { status: 400 })
+  if (kind === 'master' && !/\.(wav|flac)$/i.test(fileName)) return NextResponse.json({ error: 'Only WAV/FLAC files are allowed.' }, { status: 400 })
+  if (kind === 'cover' && !/\.(jpg|jpeg|png|webp)$/i.test(fileName)) return NextResponse.json({ error: 'Cover must be JPG, PNG or WEBP.' }, { status: 400 })
+  if (kind === 'cover' && !trackSlug) return NextResponse.json({ error: 'Select a track for this cover.' }, { status: 400 })
 
   const db = createClient(url, serviceKey, { auth: { persistSession: false } })
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const path = `masters/${crypto.randomUUID()}-${safeName}`
+  const path = kind === 'cover' ? `covers/${trackSlug}-${crypto.randomUUID()}-${safeName}` : `masters/${crypto.randomUUID()}-${safeName}`
   const { data, error } = await db.storage.from('Music').createSignedUploadUrl(path)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ path, token: data.token })
