@@ -14,7 +14,12 @@ export default function Admin() {
   const [email, setEmail] = useState('')
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email || ''))
+    let active = true
+    supabase.auth.getUser().then((result) => {
+      if (!active) return
+      setEmail(result.data.user?.email || '')
+    })
+    return () => { active = false }
   }, [supabase])
 
   async function logout() {
