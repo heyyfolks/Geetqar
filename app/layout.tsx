@@ -1,11 +1,13 @@
 import './globals.css'
 import type { Metadata } from 'next'
 
+const icon = '/geetqar-mark.svg?v=3'
+
 export const metadata: Metadata = {
   title: 'GEETQAR — Music Beyond Sound',
   description: 'The official music universe of Geetqar — originals, community listening, recommendations and conversations.',
   metadataBase: new URL('https://geetqar.vercel.app'),
-  icons: { icon: '/geetqar-mark.svg', shortcut: '/geetqar-mark.svg', apple: '/geetqar-mark.svg' },
+  icons: { icon, shortcut: icon, apple: icon },
   openGraph: {
     title: 'GEETQAR — Music Beyond Sound',
     description: 'Listen. Discover. Participate.',
