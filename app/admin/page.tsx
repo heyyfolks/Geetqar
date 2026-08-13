@@ -1,95 +1,55 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ImagePlus, Link2, Loader2, LogOut, UploadCloud } from 'lucide-react'
+import { ImagePlus, Link2, Loader2, LogOut, Pencil, Plus, Trash2, UploadCloud, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { UserResponse } from '@supabase/supabase-js'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 
-const tracks = ['VELVET PLAY', 'STOLEN FROM THE DREAMS']
+type Song = { id:string; title:string; slug:string; youtube?:string; instagram?:string; coverUrl?:string }
 
-export default function Admin() {
-  const router = useRouter()
-  const supabase = createSupabaseBrowserClient()
-  const [file, setFile] = useState<File | null>(null)
-  const [coverFile, setCoverFile] = useState<File | null>(null)
-  const [coverTrack, setCoverTrack] = useState(tracks[0])
-  const [status, setStatus] = useState('')
-  const [coverStatus, setCoverStatus] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [coverBusy, setCoverBusy] = useState(false)
-  const [email, setEmail] = useState('')
-  const [linkTrack, setLinkTrack] = useState(tracks[0])
-  const [youtube, setYoutube] = useState('')
-  const [instagram, setInstagram] = useState('')
-  const [linkStatus, setLinkStatus] = useState('')
-  const [linkBusy, setLinkBusy] = useState(false)
+export default function Admin(){
+ const router=useRouter(); const supabase=createSupabaseBrowserClient()
+ const [email,setEmail]=useState(''); const [songs,setSongs]=useState<Song[]>([]); const [open,setOpen]=useState(false); const [editing,setEditing]=useState<Song|null>(null); const [busy,setBusy]=useState(false); const [status,setStatus]=useState('')
+ const [title,setTitle]=useState(''); const [youtube,setYoutube]=useState(''); const [instagram,setInstagram]=useState(''); const [audio,setAudio]=useState<File|null>(null); const [cover,setCover]=useState<File|null>(null)
 
-  useEffect(() => {
-    let active = true
-    supabase.auth.getUser().then((result: UserResponse) => {
-      if (!active) return
-      setEmail(result.data.user?.email || '')
-    })
-    return () => { active = false }
-  }, [supabase])
-
-  async function getSession() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.access_token) { router.replace('/admin/login'); return null }
-    return session
-  }
-
-  async function upload() {
-    if (!file || busy) return
-    const session = await getSession(); if (!session) return
-    setBusy(true); setStatus('Preparing secure upload…')
-    try {
-      const res = await fetch('/api/admin/upload-url', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ fileName: file.name, kind: 'master' }) })
-      const payload = await res.json(); if (!res.ok) throw new Error(payload.error || 'Could not create upload URL')
-      setStatus('Uploading master…')
-      const { error } = await supabase.storage.from('Music').uploadToSignedUrl(payload.path, payload.token, file)
-      if (error) throw error
-      setStatus(`Uploaded securely: ${file.name}`); setFile(null)
-    } catch (e) { setStatus(e instanceof Error ? e.message : 'Upload failed') }
-    finally { setBusy(false) }
-  }
-
-  async function uploadCover() {
-    if (!coverFile || coverBusy) return
-    const session = await getSession(); if (!session) return
-    setCoverBusy(true); setCoverStatus('Preparing secure cover upload…')
-    try {
-      const slug = coverTrack.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
-      const res = await fetch('/api/admin/upload-url', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ fileName: coverFile.name, kind: 'cover', trackSlug: slug }) })
-      const payload = await res.json(); if (!res.ok) throw new Error(payload.error || 'Could not create cover upload URL')
-      setCoverStatus('Uploading cover…')
-      const { error } = await supabase.storage.from('Music').uploadToSignedUrl(payload.path, payload.token, coverFile)
-      if (error) throw error
-      setCoverStatus(`Cover uploaded for ${coverTrack}.`); setCoverFile(null)
-    } catch (e) { setCoverStatus(e instanceof Error ? e.message : 'Cover upload failed') }
-    finally { setCoverBusy(false) }
-  }
-
-  async function saveLinks() {
-    if (linkBusy) return
-    const session = await getSession(); if (!session) return
-    setLinkBusy(true); setLinkStatus('Saving links…')
-    try {
-      const res = await fetch('/api/admin/track-meta', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ track: linkTrack, youtube, instagram }) })
-      const payload = await res.json(); if (!res.ok) throw new Error(payload.error || 'Could not save links')
-      setLinkStatus(`Links saved for ${linkTrack}.`)
-    } catch (e) { setLinkStatus(e instanceof Error ? e.message : 'Could not save links') }
-    finally { setLinkBusy(false) }
-  }
-
-  async function logout() { await supabase.auth.signOut(); router.replace('/admin/login'); router.refresh() }
-
-  return <main className="min-h-screen bg-black px-6 py-24 text-white md:px-12"><div className="mx-auto max-w-3xl">
-    <div className="flex items-start justify-between gap-6"><div><div className="text-[10px] tracking-[.4em] text-gold">GEETQAR / PRIVATE CONTROL</div><h1 className="mt-4 text-5xl font-bold">Artist Admin</h1><p className="mt-4 text-sm leading-7 text-white/40">Authenticated artist controls. Master audio, artwork and track links stay under your control.</p></div><button onClick={logout} className="inline-flex items-center gap-2 border border-white/10 px-4 py-3 text-[10px] tracking-[.2em] text-white/50 hover:border-gold/40 hover:text-gold"><LogOut size={13}/> LOG OUT</button></div>
-    {email && <p className="mt-5 text-xs text-white/25">SIGNED IN AS {email}</p>}
-    <section className="glass mt-10 p-7"><h2 className="text-xl font-semibold">Upload original master</h2><p className="mt-2 text-xs text-white/35">WAV / FLAC · private storage · authenticated signed upload</p><input className="mt-6 block w-full text-sm" type="file" accept="audio/wav,audio/x-wav,audio/flac,audio/x-flac" onChange={e => setFile(e.target.files?.[0] || null)} />{file && <p className="mt-4 text-xs text-gold">Selected: {file.name}</p>}<button onClick={upload} disabled={!file || busy} className="mt-6 inline-flex items-center gap-2 border border-gold/50 px-5 py-3 text-[10px] tracking-[.25em] text-gold disabled:opacity-30">{busy ? <Loader2 size={14} className="animate-spin"/> : <UploadCloud size={14}/>} {busy ? 'UPLOADING' : 'UPLOAD MASTER'}</button>{status && <p className={`mt-5 text-xs ${/failed|unauthorized|error/i.test(status) ? 'text-red-300' : 'text-white/45'}`}>{status}</p>}</section>
-    <section className="glass mt-6 p-7"><div className="flex items-center gap-3"><ImagePlus size={18} className="text-gold"/><h2 className="text-xl font-semibold">Upload track artwork</h2></div><p className="mt-2 text-xs text-white/35">JPG / PNG / WEBP · appears where the track number is now</p><label className="mt-6 block text-[10px] tracking-[.25em] text-white/40">TRACK</label><select value={coverTrack} onChange={e => setCoverTrack(e.target.value)} className="mt-2 w-full border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold/40">{tracks.map(track => <option key={track} value={track}>{track}</option>)}</select><input className="mt-5 block w-full text-sm" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setCoverFile(e.target.files?.[0] || null)} />{coverFile && <p className="mt-4 text-xs text-gold">Selected: {coverFile.name}</p>}<button onClick={uploadCover} disabled={!coverFile || coverBusy} className="mt-6 inline-flex items-center gap-2 border border-gold/50 px-5 py-3 text-[10px] tracking-[.25em] text-gold disabled:opacity-30">{coverBusy ? <Loader2 size={14} className="animate-spin"/> : <ImagePlus size={14}/>} {coverBusy ? 'UPLOADING' : 'UPLOAD ARTWORK'}</button>{coverStatus && <p className={`mt-5 text-xs ${/failed|unauthorized|error/i.test(coverStatus) ? 'text-red-300' : 'text-white/45'}`}>{coverStatus}</p>}</section>
-    <section className="glass mt-6 p-7"><div className="flex items-center gap-3"><Link2 size={18} className="text-gold"/><h2 className="text-xl font-semibold">Add song links</h2></div><p className="mt-2 text-xs text-white/35">Add the official YouTube upload and Instagram Reel for each song. These appear when someone opens the track artwork.</p><label className="mt-6 block text-[10px] tracking-[.25em] text-white/40">TRACK</label><select value={linkTrack} onChange={e => setLinkTrack(e.target.value)} className="mt-2 w-full border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold/40">{tracks.map(track => <option key={track} value={track}>{track}</option>)}</select><label className="mt-5 block text-[10px] tracking-[.25em] text-white/40">YOUTUBE LINK</label><input value={youtube} onChange={e => setYoutube(e.target.value)} placeholder="https://www.youtube.com/..." className="mt-2 w-full border border-white/10 bg-black px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/40" /><label className="mt-5 block text-[10px] tracking-[.25em] text-white/40">INSTAGRAM REEL LINK</label><input value={instagram} onChange={e => setInstagram(e.target.value)} placeholder="https://www.instagram.com/reel/..." className="mt-2 w-full border border-white/10 bg-black px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none focus:border-gold/40" /><button onClick={saveLinks} disabled={linkBusy} className="mt-6 inline-flex items-center gap-2 border border-gold/50 px-5 py-3 text-[10px] tracking-[.25em] text-gold disabled:opacity-30">{linkBusy ? <Loader2 size={14} className="animate-spin"/> : <Link2 size={14}/>} {linkBusy ? 'SAVING' : 'SAVE LINKS'}</button>{linkStatus && <p className={`mt-5 text-xs ${/failed|unauthorized|error/i.test(linkStatus) ? 'text-red-300' : 'text-white/45'}`}>{linkStatus}</p>}</section>
-  </div></main>
+ useEffect(()=>{let active=true; supabase.auth.getUser().then((r:UserResponse)=>{if(active)setEmail(r.data.user?.email||'')}); return()=>{active=false}},[supabase])
+ useEffect(()=>{if(open)loadSongs()},[open])
+ async function session(){const {data:{session}}=await supabase.auth.getSession(); if(!session?.access_token){router.replace('/admin/login');return null} return session}
+ async function loadSongs(){const s=await session(); if(!s)return; const r=await fetch('/api/admin/songs',{headers:{authorization:`Bearer ${s.access_token}`},cache:'no-store'}); const d=await r.json().catch(()=>({})); if(r.ok)setSongs(d.songs||[])}
+ function resetForm(){setEditing(null);setTitle('');setYoutube('');setInstagram('');setAudio(null);setCover(null);setStatus('')}
+ function editSong(song:Song){setEditing(song);setTitle(song.title);setYoutube(song.youtube||'');setInstagram(song.instagram||'');setAudio(null);setCover(null);setStatus('')}
+ async function uploadFile(file:File,kind:'master'|'cover',trackTitle:string,s:any){
+   const body={fileName:file.name,kind,trackSlug:trackTitle.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')}
+   const r=await fetch('/api/admin/upload-url',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${s.access_token}`},body:JSON.stringify(body)})
+   const d=await r.json().catch(()=>({})); if(!r.ok)throw new Error(d.error||'Could not create upload URL')
+   const {error}=await supabase.storage.from('Music').uploadToSignedUrl(d.path,d.token,file); if(error)throw error; return d.path as string
+ }
+ async function saveSong(){if(busy)return; if(!title.trim()){setStatus('Song title is required.');return} if(!editing&&!audio){setStatus('Select the WAV/FLAC master first.');return} const s=await session();if(!s)return;setBusy(true);setStatus(editing?'Saving changes…':'Uploading song…')
+   try{let masterPath='';let coverPath=''; if(audio)masterPath=await uploadFile(audio,'master',title,s); if(cover)coverPath=await uploadFile(cover,'cover',title,s)
+     const song={id:editing?.id,title:title.trim(),youtube:youtube.trim(),instagram:instagram.trim(),...(masterPath?{masterPath}:{}),...(coverPath?{coverPath}:{})}
+     const r=await fetch('/api/admin/songs',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${s.access_token}`},body:JSON.stringify({song})}); const d=await r.json().catch(()=>({})); if(!r.ok)throw new Error(d.error||'Could not save song')
+     setStatus(editing?'Song updated.':'Song uploaded.'); await loadSongs(); resetForm()
+   }catch(e){setStatus(e instanceof Error?e.message:'Could not save song')}finally{setBusy(false)}
+ }
+ async function removeSong(song:Song){if(!confirm(`Delete “${song.title}” completely?`))return;const s=await session();if(!s)return;setBusy(true);setStatus('Deleting song…');try{const r=await fetch('/api/admin/songs',{method:'DELETE',headers:{'content-type':'application/json',authorization:`Bearer ${s.access_token}`},body:JSON.stringify({id:song.id})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not delete song');await loadSongs();if(editing?.id===song.id)resetForm();setStatus('Song deleted.')}catch(e){setStatus(e instanceof Error?e.message:'Could not delete song')}finally{setBusy(false)}}
+ async function logout(){await supabase.auth.signOut();router.replace('/admin/login');router.refresh()}
+ return <main className="min-h-screen bg-black px-6 py-24 text-white md:px-12"><div className="mx-auto max-w-4xl">
+  <div className="flex items-start justify-between gap-6"><div><div className="text-[10px] tracking-[.4em] text-gold">GEETQAR / PRIVATE CONTROL</div><h1 className="mt-4 text-5xl font-bold">Artist Admin</h1><p className="mt-4 text-sm leading-7 text-white/40">Manage the complete public song catalog from here.</p></div><button onClick={logout} className="inline-flex items-center gap-2 border border-white/10 px-4 py-3 text-[10px] tracking-[.2em] text-white/50 hover:border-gold/40 hover:text-gold"><LogOut size={13}/> LOG OUT</button></div>
+  {email&&<p className="mt-5 text-xs text-white/25">SIGNED IN AS {email}</p>}
+  <button onClick={()=>{setOpen(v=>!v);if(open)resetForm()}} className="glass mt-10 flex w-full items-center justify-between p-7 text-left transition hover:border-gold/30"><div><div className="text-[10px] tracking-[.35em] text-gold">MUSIC LIBRARY</div><h2 className="mt-2 text-2xl font-semibold">UPLOAD SONGS</h2><p className="mt-2 text-xs text-white/35">{songs.length} song{songs.length===1?'':'s'} uploaded · click to manage</p></div><div className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/40 text-gold">{open?<X size={18}/>:<Plus size={18}/>}</div></button>
+  {open&&<div className="mt-6 space-y-6">
+   <section className="glass p-7"><div className="flex items-center justify-between gap-4"><div><div className="text-[10px] tracking-[.35em] text-gold">{editing?'EDIT SONG':'ADD SONG'}</div><h2 className="mt-2 text-2xl font-semibold">{editing?'Edit song details':'Upload a new song'}</h2></div>{editing&&<button onClick={resetForm} className="text-xs text-white/40 hover:text-white">CANCEL</button>}</div>
+    <label className="mt-7 block text-[10px] tracking-[.25em] text-white/40">SONG TITLE</label><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Enter the title shown on the website" className="mt-2 w-full border border-white/10 bg-black px-4 py-3 text-sm outline-none focus:border-gold/40"/>
+    <label className="mt-5 block text-[10px] tracking-[.25em] text-white/40">MASTER AUDIO {editing&&<span className="text-white/20">(leave empty to keep current)</span>}</label><input className="mt-2 block w-full text-sm" type="file" accept="audio/wav,audio/x-wav,audio/flac,audio/x-flac" onChange={e=>setAudio(e.target.files?.[0]||null)}/>{audio&&<p className="mt-2 text-xs text-gold">Selected: {audio.name}</p>}
+    <label className="mt-5 block text-[10px] tracking-[.25em] text-white/40">COVER ART {editing&&<span className="text-white/20">(leave empty to keep current)</span>}</label><input className="mt-2 block w-full text-sm" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setCover(e.target.files?.[0]||null)}/>{cover&&<p className="mt-2 text-xs text-gold">Selected: {cover.name}</p>}
+    <label className="mt-5 block text-[10px] tracking-[.25em] text-white/40">YOUTUBE LINK</label><input value={youtube} onChange={e=>setYoutube(e.target.value)} placeholder="https://www.youtube.com/..." className="mt-2 w-full border border-white/10 bg-black px-4 py-3 text-sm outline-none focus:border-gold/40"/>
+    <label className="mt-5 block text-[10px] tracking-[.25em] text-white/40">INSTAGRAM REEL LINK</label><input value={instagram} onChange={e=>setInstagram(e.target.value)} placeholder="https://www.instagram.com/reel/..." className="mt-2 w-full border border-white/10 bg-black px-4 py-3 text-sm outline-none focus:border-gold/40"/>
+    <button onClick={saveSong} disabled={busy} className="mt-7 inline-flex items-center gap-2 border border-gold/50 px-5 py-3 text-[10px] tracking-[.25em] text-gold disabled:opacity-30">{busy?<Loader2 size={14} className="animate-spin"/>:<UploadCloud size={14}/>} {busy?'SAVING':'SAVE SONG'}</button>{status&&<p className={`mt-4 text-xs ${/error|required|invalid|failed|unauthorized/i.test(status)?'text-red-300':'text-white/45'}`}>{status}</p>}
+   </section>
+   <section className="glass p-7"><div className="flex items-end justify-between gap-4"><div><div className="text-[10px] tracking-[.35em] text-gold">UPLOADED SONGS</div><h2 className="mt-2 text-2xl font-semibold">Your catalog · {songs.length}</h2></div><button onClick={()=>{resetForm();window.scrollTo({top:0,behavior:'smooth'})}} className="inline-flex items-center gap-2 border border-white/10 px-4 py-3 text-[10px] tracking-[.2em] text-white/60 hover:border-gold/30 hover:text-gold"><Plus size={13}/> ADD SONG</button></div>
+    {songs.length===0?<p className="mt-8 text-sm text-white/35">No songs uploaded yet.</p>:<div className="mt-7 space-y-3">{songs.map((song,i)=><div key={song.id} className="flex items-center gap-4 border border-white/10 p-3"><div className="h-14 w-14 shrink-0 overflow-hidden border border-gold/20 bg-black/40">{song.coverUrl?<img src={song.coverUrl} alt="" className="h-full w-full object-cover"/>:<div className="flex h-full items-center justify-center text-xs text-gold">{String(i+1).padStart(2,'0')}</div>}</div><div className="min-w-0 flex-1"><div className="truncate font-semibold">{song.title}</div><div className="mt-1 text-[10px] text-white/30">{song.youtube?'YouTube · ':''}{song.instagram?'Instagram Reel':''}</div></div><button onClick={()=>editSong(song)} className="border border-white/10 p-3 text-white/50 hover:border-gold/30 hover:text-gold" aria-label="Edit"><Pencil size={14}/></button><button onClick={()=>removeSong(song)} className="border border-white/10 p-3 text-white/50 hover:border-red-400/40 hover:text-red-300" aria-label="Delete"><Trash2 size={14}/></button></div>)}</div>}
+   </section>
+  </div>}
+ </div></main>
 }
