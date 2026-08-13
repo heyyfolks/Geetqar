@@ -15,9 +15,9 @@ export function useCommunityUser(){
   const supabase=createSupabaseBrowserClient()
   const [user,setUser]=useState<CommunityUser|null>(null)
   useEffect(()=>{
-    supabase.auth.getUser().then(({data})=>{
-      const email=data.user?.email
-      if(email)setUser({id:data.user!.id,email,handle:toHandle(email)})
+    supabase.auth.getUser().then((result: { data: { user: { id: string; email?: string | null } | null } })=>{
+      const email=result.data.user?.email
+      if(email)setUser({id:result.data.user!.id,email,handle:toHandle(email)})
     })
     const {data}=supabase.auth.onAuthStateChange((_event,session)=>{
       const email=session?.user?.email
