@@ -9,43 +9,42 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   if (!url || !serviceKey) return NextResponse.json({ error: 'Music storage is not configured.' }, { status: 503 })
 
   const { slug } = await params
-  const safeSlug = slug.toLowerCase().replace(/[^a-z0-9_]/g, '')
-  if (!safeSlug || safeSlug.length > 100) return NextResponse.json({ error: 'Invalid track.' }, { status: 400 })
+  // Compare slugs and filenames using the same normalized form. This handles
+  // velvet-play, velvet_play, Velvet Play, and UUID-prefixed uploaded files.
+  const normalizedSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (!normalizedSlug || normalizedSlug.length > 100) return NextResponse.json({ error: 'Invalid track.' }, { status: 400 })
 
   const db = createClient(url, serviceKey, { auth: { persistSession: false } })
-
-  // Uploads created by the admin live under masters/<uuid>-<track-slug>.<ext>.
-  // Search the folder directly, then fall back to a normal listing so playback
-  // keeps working even if an older upload used a slightly different filename.
-  const candidates = new Map<string, string>()
+  const candidates: string[] = []
   const addFiles = (files: Array<{ name: string }>, prefix: string) => {
     for (const file of files || []) {
-      if (file.name) candidates.set(`${prefix}/${file.name}`, file.name)
+      if (file.name && /\.(wav|flac)$/i.test(file.name)) {
+        candidates.push(prefix ? `${prefix}/${file.name}` : file.name)
+      }
     }
   }
 
   const primary = await db.storage.from(BUCKET).list('masters', {
     limit: 1000,
-    search: safeSlug,
     sortBy: { column: 'name', order: 'desc' },
   })
-
   if (!primary.error) addFiles(primary.data || [], 'masters')
 
-  // Fallback for uploads made before the masters-folder convention was added.
-  if (candidates.size === 0) {
-    const root = await db.storage.from(BUCKET).list('', { limit: 1000, search: safeSlug })
+  // Fallback for older uploads that may have been placed at the bucket root.
+  if (candidates.length === 0) {
+    const root = await db.storage.from(BUCKET).list('', { limit: 1000 })
     if (!root.error) addFiles(root.data || [], '')
   }
 
-  const matchingPath = [...candidates.keys()].find(path => {
+  const matchingPath = candidates.find(path => {
     const name = path.split('/').pop()?.toLowerCase() || ''
-    return name.includes(safeSlug) && /\.(wav|flac)$/i.test(name)
+    const normalizedName = name.replace(/[^a-z0-9]/g, '')
+    return normalizedName.includes(normalizedSlug)
   })
 
   if (!matchingPath) {
     return NextResponse.json(
-      { error: 'Master not uploaded.', track: safeSlug },
+      { error: 'Master not uploaded.', track: slug },
       { status: 404, headers: { 'Cache-Control': 'no-store' } },
     )
   }
