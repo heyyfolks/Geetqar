@@ -1,7 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 
-const icon = '/geetqar-mark.svg?v=3'
+const icon = '/icon.svg?v=4'
 
 export const metadata: Metadata = {
   title: 'GEETQAR — Music Beyond Sound',
