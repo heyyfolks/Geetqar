@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Loader2, LogOut, UploadCloud } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import type { UserResponse } from '@supabase/supabase-js'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 export default function Admin() {
@@ -15,7 +16,7 @@ export default function Admin() {
 
   useEffect(() => {
     let active = true
-    supabase.auth.getUser().then((result) => {
+    supabase.auth.getUser().then((result: UserResponse) => {
       if (!active) return
       setEmail(result.data.user?.email || '')
     })
