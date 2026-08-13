@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'GEETQAR — Music Beyond Sound',
   description: 'The official music universe of Geetqar — originals, community listening, recommendations and conversations.',
   metadataBase: new URL('https://geetqar.vercel.app'),
+  icons: { icon: '/geetqar-mark.svg', shortcut: '/geetqar-mark.svg', apple: '/geetqar-mark.svg' },
   openGraph: {
     title: 'GEETQAR — Music Beyond Sound',
     description: 'Listen. Discover. Participate.',
