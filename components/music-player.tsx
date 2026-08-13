@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Pause, Play, Volume2 } from 'lucide-react'
 
 function trackSlug(title: string) {
-  return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+  return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 }
 
 export function MusicPlayer({title='VELVET PLAY',src,onCover}:{title?:string;src?:string;onCover?:(url:string)=>void}){
