@@ -13,15 +13,24 @@ export function MusicPlayer({title='VELVET PLAY',src}:{title?:string;src?:string
   const [progress,setProgress]=useState(0)
   const [audioSrc,setAudioSrc]=useState(src || '')
   const [loading,setLoading]=useState(!src)
+  const [error,setError]=useState('')
 
   useEffect(()=>{
     let active=true
-    if(src){ setAudioSrc(src); setLoading(false); return }
+    if(src){ setAudioSrc(src); setLoading(false); setError(''); return }
     setLoading(true)
-    fetch(`/api/music/${encodeURIComponent(trackSlug(title))}`)
-      .then(async r=>{ const data=await r.json(); if(!r.ok) throw new Error(data.error || 'Master unavailable'); return data.url as string })
-      .then(url=>{ if(active) setAudioSrc(url) })
-      .catch(()=>{ if(active) setAudioSrc('') })
+    setError('')
+    fetch(`/api/music/${encodeURIComponent(trackSlug(title))}?t=${Date.now()}`, { cache: 'no-store' })
+      .then(async r=>{
+        const data=await r.json().catch(()=>({}))
+        if(!r.ok) throw new Error(data.error || 'Master unavailable')
+        return data.url as string
+      })
+      .then(url=>{
+        if(!url) throw new Error('Playback URL missing')
+        if(active) setAudioSrc(url)
+      })
+      .catch(e=>{ if(active){ setAudioSrc(''); setError(e instanceof Error ? e.message : 'Master unavailable') } })
       .finally(()=>{ if(active) setLoading(false) })
     return()=>{active=false}
   },[title,src])
@@ -31,21 +40,23 @@ export function MusicPlayer({title='VELVET PLAY',src}:{title?:string;src?:string
     if(!a)return
     const tick=()=>setProgress(a.duration?(a.currentTime/a.duration)*100:0)
     const ended=()=>setPlaying(false)
+    const failed=()=>{setPlaying(false);setAudioSrc('');setError('Audio could not be played.')}
     a.addEventListener('timeupdate',tick)
     a.addEventListener('ended',ended)
-    return()=>{a.removeEventListener('timeupdate',tick);a.removeEventListener('ended',ended)}
+    a.addEventListener('error',failed)
+    return()=>{a.removeEventListener('timeupdate',tick);a.removeEventListener('ended',ended);a.removeEventListener('error',failed)}
   },[audioSrc])
 
   const toggle=async()=>{
     const a=ref.current
     if(!a||!audioSrc)return
     if(playing){a.pause();setPlaying(false)}
-    else{try{await a.play();setPlaying(true)}catch{setPlaying(false)}}
+    else{try{await a.play();setPlaying(true)}catch{setPlaying(false);setError('Audio could not be played in this browser.')}}
   }
 
   const connected=Boolean(audioSrc)
   return <div className="glass p-5 md:p-7">
-    <audio ref={ref} src={audioSrc || undefined} preload="metadata" onError={()=>setAudioSrc('')}/>
+    <audio ref={ref} src={audioSrc || undefined} preload="metadata" />
     <div className="flex items-center gap-4">
       <button onClick={toggle} disabled={!connected||loading} aria-label={connected?(playing?'Pause':'Play'):'Audio not connected'} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold text-black disabled:cursor-not-allowed disabled:opacity-40">{playing?<Pause size={17}/>:<Play size={17} fill="currentColor"/>}</button>
       <div className="min-w-0 flex-1">
@@ -55,6 +66,6 @@ export function MusicPlayer({title='VELVET PLAY',src}:{title?:string;src?:string
       </div>
       <Volume2 size={16} className="text-white/30"/>
     </div>
-    {!connected&&!loading&&<p className="mt-3 text-[10px] text-white/25">Original master is not uploaded yet.</p>}
+    {!connected&&!loading&&<p className="mt-3 text-[10px] text-red-300/80">{error || 'Original master is not uploaded yet.'}</p>}
   </div>
 }
