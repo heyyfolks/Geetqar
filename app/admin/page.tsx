@@ -43,7 +43,7 @@ export default function Admin() {
       const payload = await res.json()
       if (!res.ok) throw new Error(payload.error || 'Could not create upload URL')
       setStatus('Uploading master…')
-      const { error } = await supabase.storage.from('audio-masters').uploadToSignedUrl(payload.path, payload.token, file)
+      const { error } = await supabase.storage.from('Music').uploadToSignedUrl(payload.path, payload.token, file)
       if (error) throw error
       setStatus(`Uploaded securely: ${file.name}`); setFile(null)
     } catch (e) { setStatus(e instanceof Error ? e.message : 'Upload failed') }
