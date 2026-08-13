@@ -1,4 +1,60 @@
 'use client'
+
 import { useEffect, useRef, useState } from 'react'
 import { Pause, Play, Volume2 } from 'lucide-react'
-export function MusicPlayer({title='VELVET PLAY',src=''}:{title?:string;src?:string}){const ref=useRef<HTMLAudioElement>(null);const [playing,setPlaying]=useState(false);const [progress,setProgress]=useState(0);useEffect(()=>{const a=ref.current;if(!a)return;const tick=()=>setProgress(a.duration?(a.currentTime/a.duration)*100:0);const ended=()=>setPlaying(false);a.addEventListener('timeupdate',tick);a.addEventListener('ended',ended);return()=>{a.removeEventListener('timeupdate',tick);a.removeEventListener('ended',ended)}},[]);const toggle=async()=>{const a=ref.current;if(!a||!src)return;if(playing){a.pause();setPlaying(false)}else{try{await a.play();setPlaying(true)}catch{setPlaying(false)}}};return <div className="glass p-5 md:p-7"><audio ref={ref} src={src} preload="metadata"/><div className="flex items-center gap-4"><button onClick={toggle} disabled={!src} aria-label={src?(playing?'Pause':'Play'):'Audio not connected'} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold text-black disabled:cursor-not-allowed disabled:opacity-40">{playing?<Pause size={17}/>:<Play size={17} fill="currentColor"/>}</button><div className="min-w-0 flex-1"><div className="text-[9px] tracking-[.35em] text-gold">{src?'NOW PLAYING':'MASTER NOT CONNECTED'}</div><div className="mt-1 truncate font-semibold">{title}</div><div className="mt-3 h-px bg-white/10"><div className="h-full bg-gold transition-all" style={{width:`${progress}%`}}/></div></div><Volume2 size={16} className="text-white/30"/></div>{!src&&<p className="mt-3 text-[10px] text-white/25">Connect a private master to enable playback.</p>}</div>}
+
+function trackSlug(title: string) {
+  return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+}
+
+export function MusicPlayer({title='VELVET PLAY',src}:{title?:string;src?:string}){
+  const ref=useRef<HTMLAudioElement>(null)
+  const [playing,setPlaying]=useState(false)
+  const [progress,setProgress]=useState(0)
+  const [audioSrc,setAudioSrc]=useState(src || '')
+  const [loading,setLoading]=useState(!src)
+
+  useEffect(()=>{
+    let active=true
+    if(src){ setAudioSrc(src); setLoading(false); return }
+    setLoading(true)
+    fetch(`/api/music/${encodeURIComponent(trackSlug(title))}`)
+      .then(async r=>{ const data=await r.json(); if(!r.ok) throw new Error(data.error || 'Master unavailable'); return data.url as string })
+      .then(url=>{ if(active) setAudioSrc(url) })
+      .catch(()=>{ if(active) setAudioSrc('') })
+      .finally(()=>{ if(active) setLoading(false) })
+    return()=>{active=false}
+  },[title,src])
+
+  useEffect(()=>{
+    const a=ref.current
+    if(!a)return
+    const tick=()=>setProgress(a.duration?(a.currentTime/a.duration)*100:0)
+    const ended=()=>setPlaying(false)
+    a.addEventListener('timeupdate',tick)
+    a.addEventListener('ended',ended)
+    return()=>{a.removeEventListener('timeupdate',tick);a.removeEventListener('ended',ended)}
+  },[audioSrc])
+
+  const toggle=async()=>{
+    const a=ref.current
+    if(!a||!audioSrc)return
+    if(playing){a.pause();setPlaying(false)}
+    else{try{await a.play();setPlaying(true)}catch{setPlaying(false)}}
+  }
+
+  const connected=Boolean(audioSrc)
+  return <div className="glass p-5 md:p-7">
+    <audio ref={ref} src={audioSrc || undefined} preload="metadata" onError={()=>setAudioSrc('')}/>
+    <div className="flex items-center gap-4">
+      <button onClick={toggle} disabled={!connected||loading} aria-label={connected?(playing?'Pause':'Play'):'Audio not connected'} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold text-black disabled:cursor-not-allowed disabled:opacity-40">{playing?<Pause size={17}/>:<Play size={17} fill="currentColor"/>}</button>
+      <div className="min-w-0 flex-1">
+        <div className="text-[9px] tracking-[.35em] text-gold">{loading?'CONNECTING MASTER…':connected?'NOW PLAYING':'MASTER NOT CONNECTED'}</div>
+        <div className="mt-1 truncate font-semibold">{title}</div>
+        <div className="mt-3 h-px bg-white/10"><div className="h-full bg-gold transition-all" style={{width:`${progress}%`}}/></div>
+      </div>
+      <Volume2 size={16} className="text-white/30"/>
+    </div>
+    {!connected&&!loading&&<p className="mt-3 text-[10px] text-white/25">Original master is not uploaded yet.</p>}
+  </div>
+}
