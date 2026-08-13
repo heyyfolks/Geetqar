@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
       cookies: {
         getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
         },
@@ -18,13 +18,17 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  const path = request.nextUrl.pathname
+  if (path === '/admin/login') return response
+
   const { data: { user } } = await supabase.auth.getUser()
   const adminEmail = process.env.GEETQAR_ADMIN_EMAIL?.trim().toLowerCase()
 
-  if (request.nextUrl.pathname.startsWith('/admin')) {
+  if (path.startsWith('/admin')) {
     if (!user || !adminEmail || user.email?.toLowerCase() !== adminEmail) {
       const loginUrl = request.nextUrl.clone()
       loginUrl.pathname = '/admin/login'
+      loginUrl.search = ''
       loginUrl.searchParams.set('next', '/admin')
       return NextResponse.redirect(loginUrl)
     }
