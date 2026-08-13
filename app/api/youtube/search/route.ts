@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   if (q.length > 100) return NextResponse.json({ error: 'Search is too long.' }, { status: 400 })
 
   const key = process.env.YOUTUBE_API_KEY
-  if (!key) return NextResponse.json({ error: 'YouTube search is not configured yet. Add YOUTUBE_API_KEY in Vercel.' }, { status: 503 })
+  if (!key) return NextResponse.json({ error: 'YouTube search is not configured. Use the YouTube URL option instead.' }, { status: 503 })
 
   const url = new URL('https://www.googleapis.com/youtube/v3/search')
   url.searchParams.set('part', 'snippet')
@@ -16,17 +16,19 @@ export async function GET(request: NextRequest) {
   url.searchParams.set('safeSearch', 'moderate')
   url.searchParams.set('key', key)
 
-  const response = await fetch(url, { next: { revalidate: 30 } })
-  const data = await response.json()
-  if (!response.ok) return NextResponse.json({ error: data?.error?.message || 'YouTube search failed.' }, { status: response.status })
-
-  const items = (data.items || []).map((item: any) => ({
-    id: item.id.videoId,
-    title: item.snippet.title,
-    channel: item.snippet.channelTitle,
-    description: item.snippet.description,
-    thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
-  }))
-
-  return NextResponse.json({ items })
+  try {
+    const response = await fetch(url, { next: { revalidate: 30 } })
+    const data = await response.json()
+    if (!response.ok) return NextResponse.json({ error: data?.error?.message || 'YouTube search failed.' }, { status: response.status })
+    const items = (data.items || []).map((item: any) => ({
+      id: item.id.videoId,
+      title: item.snippet.title,
+      channel: item.snippet.channelTitle,
+      description: item.snippet.description,
+      thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
+    }))
+    return NextResponse.json({ items })
+  } catch {
+    return NextResponse.json({ error: 'YouTube is temporarily unavailable.' }, { status: 502 })
+  }
 }
