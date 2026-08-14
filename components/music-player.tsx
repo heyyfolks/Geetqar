@@ -60,12 +60,24 @@ export function MusicPlayer({title='VELVET PLAY',src,onCover}:{title?:string;src
     else{try{setError('');await a.play();setPlaying(true)}catch(e){setPlaying(false);setError(e instanceof Error?e.message:'Audio could not be played in this browser.')}}
   }
 
+  const seek=(value:number)=>{
+    const a=ref.current
+    if(!a||!Number.isFinite(a.duration))return
+    const next=Math.min(100,Math.max(0,value))
+    a.currentTime=(next/100)*a.duration
+    setProgress(next)
+  }
+
   const connected=Boolean(audioSrc)
   return <div className="glass p-5 md:p-7" onClick={e=>e.stopPropagation()}>
     <audio ref={ref} src={audioSrc || undefined} preload="metadata" crossOrigin="anonymous" />
     <div className="flex items-center gap-4">
       <button onClick={toggle} disabled={!connected||loading} aria-label={connected?(playing?'Pause':'Play'):'Audio not connected'} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gold text-black disabled:cursor-not-allowed disabled:opacity-40">{playing?<Pause size={17}/>:<Play size={17} fill="currentColor"/>}</button>
-      <div className="min-w-0 flex-1"><div className="text-[9px] tracking-[.35em] text-gold">{loading?'CONNECTING MASTER…':playing?'NOW PLAYING':connected?'READY':'MASTER NOT CONNECTED'}</div><div className="mt-1 truncate font-semibold">{title}</div><div className="mt-3 h-px bg-white/10"><div className="h-full bg-gold transition-all" style={{width:`${progress}%`}}/></div></div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[9px] tracking-[.35em] text-gold">{loading?'CONNECTING MASTER…':playing?'NOW PLAYING':connected?'READY':'MASTER NOT CONNECTED'}</div>
+        <div className="mt-1 truncate font-semibold">{title}</div>
+        <input aria-label={`Seek ${title}`} type="range" min="0" max="100" step="0.1" value={progress} disabled={!connected||loading} onChange={e=>seek(Number(e.target.value))} className="music-seek mt-3 w-full" />
+      </div>
       <Volume2 size={16} className="text-white/30"/>
     </div>
     {!connected&&!loading&&<p className="mt-3 text-[10px] text-red-300/80">{error || 'Original master is not uploaded yet.'}</p>}
