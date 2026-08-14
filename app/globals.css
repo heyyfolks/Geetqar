@@ -30,3 +30,13 @@ body { margin: 0; background: #000; color: var(--platinum); font-family: Manrope
 .gold-text { background: linear-gradient(110deg, #fff2a5, #D4AF37, #fff7c4); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+
+/* Music artwork: preserve the complete uploaded image instead of cropping it. */
+img[alt$="artwork"] { object-fit: contain !important; background: #050505; }
+
+/* Premium seek bar for the music player. */
+.music-seek { appearance: none; height: 4px; border-radius: 999px; background: rgba(255,255,255,.12); cursor: pointer; accent-color: var(--gold); }
+.music-seek::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); border: 2px solid #000; cursor: grab; }
+.music-seek::-webkit-slider-thumb:active { cursor: grabbing; }
+.music-seek::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--gold); border: 2px solid #000; cursor: grab; }
+.music-seek:disabled { opacity: .35; cursor: not-allowed; }
