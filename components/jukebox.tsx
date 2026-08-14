@@ -1,32 +1,228 @@
 'use client'
+
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronUp, Loader2, Mail, MessageCircle, Radio, Send, Users, X } from 'lucide-react'
 import { supabase } from '@/lib/queue'
 import { CommunityUser, EmailGate, useCommunityUser } from '@/components/email-gate'
 
-type Song={id:string;title:string;slug:string;coverUrl?:string;featured?:boolean}
-type Vote={user_id:string;song_id:string}
-type Recommendation={id:string;user_id:string;username:string;song_id:string;song_title:string;purpose:string;created_at:string}
-type Chat={id:string;username:string;email?:string;message:string;created_at:string;user_id?:string}
+type Song = { id: string; title: string; slug: string; coverUrl?: string; featured?: boolean }
+type Vote = { user_id: string; song_id: string }
+type Recommendation = { id: string; user_id: string; username: string; song_id: string; song_title: string; purpose: string; created_at: string }
+type Chat = { id: string; username: string; email?: string; message: string; created_at: string; user_id?: string }
 
-export function Jukebox({tracks}:{tracks:string[]}){
- const user=useCommunityUser(); const db=supabase()
- const [songs,setSongs]=useState<Song[]>([]),[votes,setVotes]=useState<Vote[]>([]),[recommendations,setRecommendations]=useState<Recommendation[]>([]),[chat,setChat]=useState<Chat[]>([])
- const [message,setMessage]=useState(''),[purpose,setPurpose]=useState(''),[selectedSong,setSelectedSong]=useState(''),[gate,setGate]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[listeners,setListeners]=useState(1)
- const featured=useMemo(()=>songs.filter(s=>s.featured),[songs]); const catalogue=songs
- useEffect(()=>{let alive=true;const load=async()=>{const [sr,vr,rr,cr]=await Promise.all([fetch('/api/songs',{cache:'no-store'}).then(r=>r.ok?r.json():{songs:[]}),db.from('live_room_votes').select('user_id,song_id'),db.from('live_room_recommendations').select('*').order('created_at',{ascending:true}).limit(100),db.from('chat_messages').select('*').order('created_at',{ascending:true}).limit(100)]);if(!alive)return;setSongs(sr.songs||[]);setVotes((vr.data||[]) as Vote[]);setRecommendations((rr.data||[]) as Recommendation[]);setChat((cr.data||[]) as Chat[]);if(vr.error||rr.error||cr.error)setError((vr.error||rr.error||cr.error)?.message||'Live room could not load')}load();const ch=db.channel('geetqar-live-room-v2',{config:{presence:{key:user?.id||Math.random().toString(36).slice(2)}}}).on('postgres_changes',{event:'*',schema:'public',table:'live_room_votes'},p=>{if(p.eventType==='INSERT')setVotes(v=>(v.some(x=>x.user_id===p.new.user_id)?v:v.concat(p.new as Vote)));if(p.eventType==='UPDATE')setVotes(v=>v.map(x=>x.user_id===p.new.user_id?p.new as Vote:x));if(p.eventType==='DELETE')setVotes(v=>v.filter(x=>x.user_id!==p.old.user_id))}).on('postgres_changes',{event:'INSERT',schema:'public',table:'live_room_recommendations'},p=>setRecommendations(r=>[...r,p.new as Recommendation].slice(-100))).on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages'},p=>setChat(c=>[...c,p.new as Chat].slice(-100))).on('presence',{event:'sync'},()=>setListeners(Math.max(1,Object.keys(ch.presenceState()).length))).subscribe(async s=>{if(s==='SUBSCRIBED')await ch.track({online:true})});return()=>{alive=false;db.removeChannel(ch)}},[user?.id])
- const requireUser=()=>{if(!user){setGate(true);return false}return true}
- const vote=async(songId:string)=>{if(!requireUser()||busy)return;setBusy(true);setError('');setNotice('');try{const current=votes.find(v=>v.user_id===user!.id);if(current?.song_id===songId){const {error:e}=await db.from('live_room_votes').delete().eq('user_id',user!.id);if(e)throw e;setNotice('Vote removed.')}else{const {error:e}=await db.from('live_room_votes').upsert({user_id:user!.id,song_id:songId},{onConflict:'user_id'});if(e)throw e;setNotice(current?'Vote moved to the new song.':'Vote added.')}}catch(e){setError(e instanceof Error?e.message:'Vote failed')}finally{setBusy(false)}}
- const recommend=async()=>{if(!requireUser()||busy)return;if(!selectedSong||!purpose.trim()){setError('Select a catalogue song and add your purpose.');return}const song=catalogue.find(s=>s.id===selectedSong);if(!song)return;setBusy(true);setError('');try{const {error:e}=await db.from('live_room_recommendations').insert({user_id:user!.id,email:user!.email,username:user!.handle,song_id:song.id,song_title:song.title,purpose:purpose.trim()});if(e)throw e;setPurpose('');setSelectedSong('');setNotice('Recommendation sent to the room.')}catch(e){setError(e instanceof Error?e.message:'Could not send recommendation')}finally{setBusy(false)}}
- const send=async()=>{if(!requireUser()||busy)return;const text=message.trim();if(!text)return;setBusy(true);const {error:e}=await db.from('chat_messages').insert({user_id:user!.id,email:user!.email,username:user!.handle,message:text});if(e)setError(e.message);else setMessage('');setBusy(false)}
- const signOut=async()=>db.auth.signOut()
- return <div className="space-y-5">
-  <div className="glass overflow-hidden p-6 md:p-8"><div className="flex flex-wrap items-center justify-between gap-4"><div><div className="flex items-center gap-2 text-[9px] tracking-[.35em] text-gold"><Radio size={12}/> GEETQAR LIVE ROOM</div><h3 className="mt-3 text-3xl font-semibold md:text-4xl">The Jukebox.</h3><p className="mt-2 max-w-2xl text-sm leading-6 text-white/40">The Sounds becomes a live room. Vote for what deserves another listen, recommend something from the archive, and talk while the room is alive.</p></div><div className="flex items-center gap-3"><span className="rounded-full border border-emerald-400/20 px-3 py-2 text-[9px] text-emerald-300">● ROOM OPEN</span><span className="flex items-center gap-1 text-[10px] text-white/35"><Users size={13}/>{listeners} here</span></div></div></div>
-  <div className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
-   <div className="glass p-6 md:p-7"><div className="flex items-end justify-between gap-3"><div><span className="text-[9px] tracking-[.35em] text-gold">THE SOUNDS / LIVE VOTE</span><h3 className="mt-2 text-2xl font-semibold">What should play?</h3></div><span className="text-[9px] text-white/25">{featured.length} FEATURED</span></div>{!user&&<button onClick={()=>setGate(true)} className="mt-5 flex w-full items-center justify-center gap-2 border border-gold/30 px-4 py-3 text-[10px] tracking-[.22em] text-gold"><Mail size={14}/> VERIFY EMAIL TO VOTE</button>}<div className="mt-5 space-y-3">{featured.map((s,i)=>{const count=votes.filter(v=>v.song_id===s.id).length;const mine=votes.some(v=>v.user_id===user?.id&&v.song_id===s.id);return <div key={s.id} className={`flex items-center gap-3 border p-3 transition ${mine?'border-gold/50 bg-gold/[.04]':'border-white/10'}`}><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden border border-gold/20">{s.coverUrl?<img src={s.coverUrl} alt="" className="h-full w-full object-contain"/>:<span className="text-xs text-gold">{String(i+1).padStart(2,'0')}</span>}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{s.title}</div><div className="mt-1 text-[9px] text-white/30">{count} {count===1?'vote':'votes'}{mine?' · YOUR VOTE':''}</div></div><button onClick={()=>vote(s.id)} disabled={!user||busy} className={`flex min-w-[72px] items-center justify-center gap-1 border px-3 py-2 text-[9px] tracking-[.12em] disabled:opacity-35 ${mine?'border-gold text-gold':'border-white/10 text-white/45 hover:border-gold/40 hover:text-gold'}`}><ChevronUp size={14}/>{mine?'UNVOTE':'VOTE'} <span className="ml-1 text-gold">{count}</span></button></div>})}{!featured.length&&<div className="border border-white/10 p-8 text-center text-xs text-white/30">No songs are featured in The Sounds yet.</div>}</div><p className="mt-4 text-[9px] uppercase tracking-[.18em] text-white/20">One verified account can have one active vote. Vote again to move it to another song.</p></div>
-   <div className="glass p-6 md:p-7"><div><span className="text-[9px] tracking-[.35em] text-gold">COMPLIMENTARY RECOMMENDATION</span><h3 className="mt-2 text-2xl font-semibold">Send something from the archive.</h3><p className="mt-2 text-xs leading-6 text-white/35">Pick any catalogue song and tell the room why you want someone to hear it.</p></div>{!user&&<button onClick={()=>setGate(true)} className="mt-5 flex w-full items-center justify-center gap-2 border border-gold/30 px-4 py-3 text-[10px] tracking-[.22em] text-gold"><Mail size={14}/> VERIFY EMAIL TO RECOMMEND</button>}<label className="mt-5 block text-[9px] tracking-[.2em] text-white/35">CATALOGUE SONG<select disabled={!user} value={selectedSong} onChange={e=>setSelectedSong(e.target.value)} className="mt-2 w-full border border-white/10 bg-black p-3 text-sm text-white outline-none focus:border-gold"><option value="">Select a song…</option>{catalogue.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}</select></label><label className="mt-4 block text-[9px] tracking-[.2em] text-white/35">WHY / PURPOSE<textarea disabled={!user} value={purpose} onChange={e=>setPurpose(e.target.value)} maxLength={500} rows={5} placeholder="Why should the room hear this one?" className="mt-2 w-full resize-none border border-white/10 bg-black p-3 text-sm leading-6 outline-none focus:border-gold"/></label><button disabled={!user||busy} onClick={recommend} className="mt-4 flex w-full items-center justify-center gap-2 border border-gold/30 px-4 py-3 text-[10px] tracking-[.22em] text-gold disabled:opacity-35">{busy?<Loader2 size={15} className="animate-spin"/>:<Send size={14}/>} SEND RECOMMENDATION</button></div>
-  </div>
-  <div className="glass flex min-h-[430px] flex-col p-6 md:p-7"><div className="flex items-center gap-2 border-b border-white/10 pb-4"><MessageCircle size={16} className="text-gold"/><span className="text-[9px] tracking-[.35em]">LIVE DISCUSSION</span><span className="ml-auto text-[9px] text-white/25">REALTIME · VERIFIED</span></div><div className="flex-1 space-y-3 overflow-auto py-5">{recommendations.map(r=><div key={`r-${r.id}`} className="border border-gold/15 bg-gold/[.03] p-3"><div className="text-xs text-gold">{r.username} recommended “{r.song_title}”</div><div className="mt-2 text-sm text-white/55">{r.purpose}</div></div>)}{chat.map(c=><div key={c.id}><span className="text-xs text-gold">{c.username}</span><p className="break-words text-sm text-white/60">{c.message}</p></div>)}{!chat.length&&!recommendations.length&&<p className="text-sm text-white/25">The room is quiet. Start the conversation.</p>}</div><div className="border-t border-white/10 pt-4">{user?<div className="mb-2 flex items-center gap-2 text-[9px] text-white/25"><Check size={12} className="text-gold"/> POSTING AS <span className="text-gold">{user.email}</span><button onClick={signOut} className="ml-auto text-white/30 hover:text-white"><X size={13}/></button></div>:<div className="mb-2 text-[9px] text-white/25">VERIFY EMAIL TO JOIN THE DISCUSSION</div>}<div className="flex gap-2"><input value={message} maxLength={500} disabled={!user} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder={user?'Say something about the music…':'Verify your email first…'} className="min-w-0 flex-1 rounded border border-white/10 bg-transparent px-3 py-3 text-sm outline-none focus:border-gold disabled:opacity-40"/><button onClick={()=>user?send():setGate(true)} disabled={busy||!!user&&!message.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center border border-gold/30 text-gold disabled:opacity-30"><Send size={16}/></button></div></div></div>
-  <EmailGate open={gate} onClose={()=>setGate(false)} onReady={(_u:CommunityUser)=>setNotice('Email verified. Welcome to the Live Room.')}/>{(error||notice)&&<div className={`text-xs ${error?'text-red-300':'text-gold'}`}>{error||notice}</div>}
- </div>
+export function Jukebox({ tracks: _tracks }: { tracks: string[] }) {
+  const user = useCommunityUser()
+  const db = supabase()
+  const [songs, setSongs] = useState<Song[]>([])
+  const [votes, setVotes] = useState<Vote[]>([])
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [chat, setChat] = useState<Chat[]>([])
+  const [message, setMessage] = useState('')
+  const [purpose, setPurpose] = useState('')
+  const [selectedSong, setSelectedSong] = useState('')
+  const [gate, setGate] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [listeners, setListeners] = useState(1)
+
+  const featured = useMemo(() => songs.filter((song) => song.featured), [songs])
+  const catalogue = songs
+
+  useEffect(() => {
+    let alive = true
+
+    const load = async () => {
+      const [songsResponse, votesResponse, recommendationsResponse, chatResponse] = await Promise.all([
+        fetch('/api/songs', { cache: 'no-store' }).then((response) => response.ok ? response.json() : { songs: [] }),
+        db.from('live_room_votes').select('user_id,song_id'),
+        db.from('live_room_recommendations').select('*').order('created_at', { ascending: true }).limit(100),
+        db.from('chat_messages').select('*').order('created_at', { ascending: true }).limit(100),
+      ])
+
+      if (!alive) return
+
+      setSongs(songsResponse.songs || [])
+      setVotes((votesResponse.data || []) as Vote[])
+      setRecommendations((recommendationsResponse.data || []) as Recommendation[])
+      setChat((chatResponse.data || []) as Chat[])
+
+      const firstError = votesResponse.error || recommendationsResponse.error || chatResponse.error
+      if (firstError) setError(firstError.message || 'Live room could not load')
+    }
+
+    void load()
+
+    const channel = db
+      .channel('geetqar-live-room-v2', {
+        config: { presence: { key: user?.id || Math.random().toString(36).slice(2) } },
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_room_votes' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setVotes((current) => current.some((vote) => vote.user_id === payload.new.user_id) ? current : current.concat(payload.new as Vote))
+        }
+        if (payload.eventType === 'UPDATE') {
+          setVotes((current) => current.map((vote) => vote.user_id === payload.new.user_id ? payload.new as Vote : vote))
+        }
+        if (payload.eventType === 'DELETE') {
+          setVotes((current) => current.filter((vote) => vote.user_id !== payload.old.user_id))
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_room_recommendations' }, (payload) => {
+        setRecommendations((current) => [...current, payload.new as Recommendation].slice(-100))
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
+        setChat((current) => [...current, payload.new as Chat].slice(-100))
+      })
+      .on('presence', { event: 'sync' }, () => {
+        setListeners(Math.max(1, Object.keys(channel.presenceState()).length))
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') await channel.track({ online: true })
+      })
+
+    return () => {
+      alive = false
+      void db.removeChannel(channel)
+    }
+  }, [db, user?.id])
+
+  const requireUser = () => {
+    if (!user) {
+      setGate(true)
+      return false
+    }
+    return true
+  }
+
+  const vote = async (songId: string) => {
+    if (!requireUser() || busy) return
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const current = votes.find((item) => item.user_id === user!.id)
+      if (current?.song_id === songId) {
+        const { error: voteError } = await db.from('live_room_votes').delete().eq('user_id', user!.id)
+        if (voteError) throw voteError
+        setNotice('Vote removed.')
+      } else {
+        const { error: voteError } = await db.from('live_room_votes').upsert(
+          { user_id: user!.id, song_id: songId },
+          { onConflict: 'user_id' },
+        )
+        if (voteError) throw voteError
+        setNotice(current ? 'Vote moved to the new song.' : 'Vote added.')
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Vote failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const recommend = async () => {
+    if (!requireUser() || busy) return
+    if (!selectedSong || !purpose.trim()) {
+      setError('Select a catalogue song and add your purpose.')
+      return
+    }
+    const song = catalogue.find((item) => item.id === selectedSong)
+    if (!song) return
+    setBusy(true)
+    setError('')
+    try {
+      const { error: recommendationError } = await db.from('live_room_recommendations').insert({
+        user_id: user!.id,
+        email: user!.email,
+        username: user!.handle,
+        song_id: song.id,
+        song_title: song.title,
+        purpose: purpose.trim(),
+      })
+      if (recommendationError) throw recommendationError
+      setPurpose('')
+      setSelectedSong('')
+      setNotice('Recommendation sent to the room.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not send recommendation')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const send = async () => {
+    if (!requireUser() || busy) return
+    const text = message.trim()
+    if (!text) return
+    setBusy(true)
+    const { error: chatError } = await db.from('chat_messages').insert({
+      user_id: user!.id,
+      email: user!.email,
+      username: user!.handle,
+      message: text,
+    })
+    if (chatError) setError(chatError.message)
+    else setMessage('')
+    setBusy(false)
+  }
+
+  const signOut = async () => {
+    await db.auth.signOut()
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="glass overflow-hidden p-6 md:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-[9px] tracking-[.35em] text-gold"><Radio size={12} /> GEETQAR LIVE ROOM</div>
+            <h3 className="mt-3 text-3xl font-semibold md:text-4xl">The Jukebox.</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/40">The Sounds becomes a live room. Vote for what deserves another listen, recommend something from the archive, and talk while the room is alive.</p>
+          </div>
+          <div className="flex items-center gap-3"><span className="rounded-full border border-emerald-400/20 px-3 py-2 text-[9px] text-emerald-300">● ROOM OPEN</span><span className="flex items-center gap-1 text-[10px] text-white/35"><Users size={13} />{listeners} here</span></div>
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
+        <div className="glass p-6 md:p-7">
+          <div className="flex items-end justify-between gap-3"><div><span className="text-[9px] tracking-[.35em] text-gold">THE SOUNDS / LIVE VOTE</span><h3 className="mt-2 text-2xl font-semibold">What should play?</h3></div><span className="text-[9px] text-white/25">{featured.length} FEATURED</span></div>
+          {!user && <button onClick={() => setGate(true)} className="mt-5 flex w-full items-center justify-center gap-2 border border-gold/30 px-4 py-3 text-[10px] tracking-[.22em] text-gold"><Mail size={14} /> VERIFY EMAIL TO VOTE</button>}
+          <div className="mt-5 space-y-3">
+            {featured.map((song, index) => {
+              const count = votes.filter((voteItem) => voteItem.song_id === song.id).length
+              const mine = votes.some((voteItem) => voteItem.user_id === user?.id && voteItem.song_id === song.id)
+              return <div key={song.id} className={`flex items-center gap-3 border p-3 transition ${mine ? 'border-gold/50 bg-gold/[.04]' : 'border-white/10'}`}><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden border border-gold/20">{song.coverUrl ? <img src={song.coverUrl} alt="" className="h-full w-full object-contain" /> : <span className="text-xs text-gold">{String(index + 1).padStart(2, '0')}</span>}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{song.title}</div><div className="mt-1 text-[9px] text-white/30">{count} {count === 1 ? 'vote' : 'votes'}{mine ? ' · YOUR VOTE' : ''}</div></div><button onClick={() => vote(song.id)} disabled={!user || busy} className={`flex min-w-[72px] items-center justify-center gap-1 border px-3 py-2 text-[9px] tracking-[.12em] disabled:opacity-35 ${mine ? 'border-gold text-gold' : 'border-white/10 text-white/45 hover:border-gold/40 hover:text-gold'}`}><ChevronUp size={14} />{mine ? 'UNVOTE' : 'VOTE'}<span className="ml-1 text-gold">{count}</span></button></div>
+            })}
+            {!featured.length && <div className="border border-white/10 p-8 text-center text-xs text-white/30">No songs are featured in The Sounds yet.</div>}
+          </div>
+          <p className="mt-4 text-[9px] uppercase tracking-[.18em] text-white/20">One verified account can have one active vote. Vote again to move it to another song.</p>
+        </div>
+
+        <div className="glass p-6 md:p-7">
+          <div><span className="text-[9px] tracking-[.35em] text-gold">COMPLIMENTARY RECOMMENDATION</span><h3 className="mt-2 text-2xl font-semibold">Send something from the archive.</h3><p className="mt-2 text-xs leading-6 text-white/35">Pick any catalogue song and tell the room why you want someone to hear it.</p></div>
+          {!user && <button onClick={() => setGate(true)} className="mt-5 flex w-full items-center justify-center gap-2 border border-gold/30 px-4 py-3 text-[10px] tracking-[.22em] text-gold"><Mail size={14} /> VERIFY EMAIL TO RECOMMEND</button>}
+          <label className="mt-5 block text-[9px] tracking-[.2em] text-white/35">CATALOGUE SONG<select disabled={!user} value={selectedSong} onChange={(event) => setSelectedSong(event.target.value)} className="mt-2 w-full border border-white/10 bg-black p-3 text-sm text-white outline-none focus:border-gold"><option value="">Select a song…</option>{catalogue.map((song) => <option key={song.id} value={song.id}>{song.title}</option>)}</select></label>
+          <label className="mt-4 block text-[9px] tracking-[.2em] text-white/35">WHY / PURPOSE<textarea disabled={!user} value={purpose} onChange={(event) => setPurpose(event.target.value)} maxLength={500} rows={5} placeholder="Why should the room hear this one?" className="mt-2 w-full resize-none border border-white/10 bg-black p-3 text-sm leading-6 outline-none focus:border-gold" /></label>
+          <button disabled={!user || busy} onClick={recommend} className="mt-4 flex w-full items-center justify-center gap-2 border border-gold/30 px-4 py-3 text-[10px] tracking-[.22em] text-gold disabled:opacity-35">{busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />} SEND RECOMMENDATION</button>
+        </div>
+      </div>
+
+      <div className="glass flex min-h-[430px] flex-col p-6 md:p-7">
+        <div className="flex items-center gap-2 border-b border-white/10 pb-4"><MessageCircle size={16} className="text-gold" /><span className="text-[9px] tracking-[.35em]">LIVE DISCUSSION</span><span className="ml-auto text-[9px] text-white/25">REALTIME · VERIFIED</span></div>
+        <div className="flex-1 space-y-3 overflow-auto py-5">
+          {recommendations.map((item) => <div key={`recommendation-${item.id}`} className="border border-gold/15 bg-gold/[.03] p-3"><div className="text-xs text-gold">{item.username} recommended “{item.song_title}”</div><div className="mt-2 text-sm text-white/55">{item.purpose}</div></div>)}
+          {chat.map((item) => <div key={item.id}><span className="text-xs text-gold">{item.username}</span><p className="break-words text-sm text-white/60">{item.message}</p></div>)}
+          {!chat.length && !recommendations.length && <p className="text-sm text-white/25">The room is quiet. Start the conversation.</p>}
+        </div>
+        <div className="border-t border-white/10 pt-4">
+          {user ? <div className="mb-2 flex items-center gap-2 text-[9px] text-white/25"><Check size={12} className="text-gold" /> POSTING AS <span className="text-gold">{user.email}</span><button onClick={signOut} className="ml-auto text-white/30 hover:text-white"><X size={13} /></button></div> : <div className="mb-2 text-[9px] text-white/25">VERIFY EMAIL TO JOIN THE DISCUSSION</div>}
+          <div className="flex gap-2"><input value={message} maxLength={500} disabled={!user} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void send() }} placeholder={user ? 'Say something about the music…' : 'Verify your email first…'} className="min-w-0 flex-1 rounded border border-white/10 bg-transparent px-3 py-3 text-sm outline-none focus:border-gold disabled:opacity-40" /><button onClick={() => user ? void send() : setGate(true)} disabled={busy || (!!user && !message.trim())} className="flex h-11 w-11 shrink-0 items-center justify-center border border-gold/30 text-gold disabled:opacity-30"><Send size={16} /></button></div>
+        </div>
+      </div>
+
+      <EmailGate open={gate} onClose={() => setGate(false)} onReady={(_communityUser: CommunityUser) => setNotice('Email verified. Welcome to the Live Room.')} />
+      {(error || notice) && <div className={`text-xs ${error ? 'text-red-300' : 'text-gold'}`}>{error || notice}</div>}
+    </div>
+  )
 }
