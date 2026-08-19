@@ -11,22 +11,26 @@ function toHandle(email: string) {
   return local.replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 24) || 'listener'
 }
 
+type AuthUser = { id: string; email?: string | null }
+type AuthResult = { data: { user: AuthUser | null } }
+type AuthSession = { user: AuthUser } | null
+
 export function useCommunityUser() {
   const supabase = createSupabaseBrowserClient()
   const [user, setUser] = useState<CommunityUser | null>(null)
 
   useEffect(() => {
     let mounted = true
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then((result: AuthResult) => {
       if (!mounted) return
-      const email = data.user?.email
-      setUser(email ? { id: data.user!.id, email, handle: toHandle(email) } : null)
+      const email = result.data.user?.email
+      setUser(email && result.data.user ? { id: result.data.user.id, email, handle: toHandle(email) } : null)
     })
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((_event: string, session: AuthSession) => {
       if (!mounted) return
       const email = session?.user?.email
-      setUser(email ? { id: session!.user.id, email, handle: toHandle(email) } : null)
+      setUser(email && session?.user ? { id: session.user.id, email, handle: toHandle(email) } : null)
     })
 
     return () => {
@@ -64,10 +68,10 @@ export function EmailGate({
 
   useEffect(() => {
     if (!open) return
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((_event: string, session: AuthSession) => {
       const email = session?.user?.email
-      if (email) {
-        const communityUser = { id: session!.user.id, email, handle: toHandle(email) }
+      if (email && session?.user) {
+        const communityUser = { id: session.user.id, email, handle: toHandle(email) }
         onReady(communityUser)
         onClose()
       }
@@ -96,28 +100,20 @@ export function EmailGate({
       },
     })
 
-    if (e) {
-      setError(e.message)
-    } else {
-      setSent(true)
-    }
+    if (e) setError(e.message)
+    else setSent(true)
     setBusy(false)
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-5 backdrop-blur-md"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-5 backdrop-blur-md" onClick={onClose}>
       <div className="glass w-full max-w-md p-7 md:p-9" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between">
           <div>
             <div className="text-[9px] tracking-[.35em] text-gold">GEETQAR / COMMUNITY ID</div>
             <h3 className="mt-3 text-2xl font-semibold">One email. One identity.</h3>
           </div>
-          <button onClick={onClose} aria-label="Close">
-            <X size={18} />
-          </button>
+          <button onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
 
         <p className="mt-4 text-sm leading-6 text-white/45">
@@ -129,23 +125,10 @@ export function EmailGate({
           <>
             <label className="mt-7 block text-[9px] tracking-[.25em] text-white/35">
               EMAIL ADDRESS
-              <input
-                autoFocus
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && send()}
-                type="email"
-                placeholder="you@example.com"
-                className="mt-2 w-full border border-white/10 bg-transparent p-3 text-sm outline-none focus:border-gold"
-              />
+              <input autoFocus value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} type="email" placeholder="you@example.com" className="mt-2 w-full border border-white/10 bg-transparent p-3 text-sm outline-none focus:border-gold" />
             </label>
-            <button
-              onClick={send}
-              disabled={busy}
-              className="mt-5 flex w-full items-center justify-center gap-2 border border-gold/40 px-5 py-3 text-[10px] tracking-[.25em] text-gold disabled:opacity-30"
-            >
-              {busy ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} />}
-              SEND SIGN-IN LINK
+            <button onClick={send} disabled={busy} className="mt-5 flex w-full items-center justify-center gap-2 border border-gold/40 px-5 py-3 text-[10px] tracking-[.25em] text-gold disabled:opacity-30">
+              {busy ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} />} SEND SIGN-IN LINK
             </button>
           </>
         ) : (
@@ -153,15 +136,9 @@ export function EmailGate({
             <Check size={18} className="text-gold" />
             <div className="mt-3 text-sm text-white">Check your email</div>
             <p className="mt-2 text-xs leading-5 text-white/45">
-              We sent a secure sign-in link to <span className="text-white/75">{email}</span>.
-              Open the link in the same browser to enter the Live Room.
+              We sent a secure sign-in link to <span className="text-white/75">{email}</span>. Open the link in the same browser to enter the Live Room.
             </p>
-            <button
-              onClick={() => setSent(false)}
-              className="mt-4 text-[9px] tracking-[.2em] text-gold"
-            >
-              USE ANOTHER EMAIL
-            </button>
+            <button onClick={() => setSent(false)} className="mt-4 text-[9px] tracking-[.2em] text-gold">USE ANOTHER EMAIL</button>
           </div>
         )}
 
