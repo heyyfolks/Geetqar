@@ -1,5 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 const BUCKET='Music',META_PATH='config/songs.json'
-type Song={id:string;title:string;slug:string;masterPath:string;coverPath?:string;youtube?:string;instagram?:string;description?:string;featured?:boolean;createdAt:string;updatedAt:string}
-export async function GET(){const url=process.env.NEXT_PUBLIC_SUPABASE_URL,serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!url||!serviceKey)return NextResponse.json({songs:[]},{headers:{'Cache-Control':'no-store'}});const db=createClient(url,serviceKey,{auth:{persistSession:false}});const {data}=await db.storage.from(BUCKET).download(META_PATH);if(!data)return NextResponse.json({songs:[]},{headers:{'Cache-Control':'no-store'}});try{const p=JSON.parse(await data.text()),songs=Array.isArray(p?.songs)?p.songs as Song[]:[];const result=await Promise.all(songs.map(async s=>{let coverUrl='';if(s.coverPath){const x=await db.storage.from(BUCKET).createSignedUrl(s.coverPath,3600);coverUrl=x.data?.signedUrl||''}return{id:s.id,title:s.title,slug:s.slug,youtube:s.youtube||'',instagram:s.instagram||'',description:s.description||'',coverUrl,featured:s.featured===true}}));return NextResponse.json({songs:result},{headers:{'Cache-Control':'no-store'}})}catch{return NextResponse.json({songs:[]},{headers:{'Cache-Control':'no-store'}})}}
+type Song={id:string;title:string;slug:string;masterPath:string;coverPath?:string;youtube?:string;instagram?:string;description?:string;featured?:boolean;createdAt:string;updatedAt:string;releaseDate?:string;genre?:string;mood?:string[];lyrics?:string;credits?:Record<string,string>;duration?:number;visualizer?:string}
+export async function GET(){
+  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY
+  if(!url||!serviceKey)return NextResponse.json({songs:[]},{headers:{'Cache-Control':'no-store'}})
+  const db=createClient(url,serviceKey,{auth:{persistSession:false}})
+  const {data}=await db.storage.from(BUCKET).download(META_PATH)
+  if(!data)return NextResponse.json({songs:[]},{headers:{'Cache-Control':'no-store'}})
+  try{
+    const p=JSON.parse(await data.text()),songs=Array.isArray(p?.songs)?p.songs as Song[]:[]
+    const result=await Promise.all(songs.map(async s=>{let coverUrl='';if(s.coverPath){const x=await db.storage.from(BUCKET).createSignedUrl(s.coverPath,3600);coverUrl=x.data?.signedUrl||''}return{id:s.id,title:s.title,slug:s.slug,youtube:s.youtube||'',instagram:s.instagram||'',description:s.description||'',coverUrl,featured:s.featured===true,releaseDate:s.releaseDate||s.createdAt?.slice(0,10)||'',genre:s.genre||'',mood:Array.isArray(s.mood)?s.mood:[],lyrics:s.lyrics||'',credits:s.credits&&typeof s.credits==='object'?s.credits:{},duration:typeof s.duration==='number'?s.duration:0,visualizer:s.visualizer||'PULSE'}}))
+    return NextResponse.json({songs:result},{headers:{'Cache-Control':'no-store'}})
+  }catch{return NextResponse.json({songs:[]},{headers:{'Cache-Control':'no-store'}})}
+}
