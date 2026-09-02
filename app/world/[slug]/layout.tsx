@@ -31,11 +31,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   const description = song.description?.trim() || `Listen to ${song.title} by GEETQAR — original music from the official GEETQAR sound world.`
   const canonical = `${siteUrl}/world/${song.slug}`
+  const keywords = [song.title, `${song.title} GEETQAR`, 'GEETQAR', 'GEETQAR music', 'GEETQAR songs', song.genre].filter((value): value is string => Boolean(value))
 
   return {
     title: `${song.title} — GEETQAR`,
     description,
-    keywords: [song.title, `${song.title} GEETQAR`, 'GEETQAR', 'GEETQAR music', 'GEETQAR songs', song.genre].filter(Boolean),
+    keywords,
     alternates: { canonical },
     openGraph: {
       title: `${song.title} — GEETQAR`,
