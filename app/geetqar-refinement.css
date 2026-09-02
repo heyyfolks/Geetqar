@@ -1,0 +1,216 @@
+/* GEETQAR refinement layer — keeps the existing world, improves hierarchy and usability. */
+
+:root {
+  --gq-gold: #d4af37;
+  --gq-gold-soft: #f2dc8a;
+  --gq-ink: #050505;
+  --gq-line: rgba(255,255,255,.09);
+  --gq-muted: rgba(255,255,255,.48);
+}
+
+/* Make the experience feel authored rather than like a collection of effects. */
+main > section {
+  position: relative;
+  isolation: isolate;
+}
+
+main > section::before {
+  content: '';
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212,175,55,.13), transparent);
+  pointer-events: none;
+}
+
+/* Stronger type hierarchy without changing the existing structure. */
+h1, h2, h3 { text-wrap: balance; }
+.hero-title { letter-spacing: -.085em !important; }
+
+/* Give section labels a quiet editorial rhythm. */
+main > section > div > p:first-child {
+  text-transform: uppercase;
+}
+
+/* Media should feel like artwork, not stock-photo cards. */
+main img, main video {
+  backface-visibility: hidden;
+}
+
+main video {
+  will-change: transform;
+}
+
+/* Existing glass system: less “jelly toy”, more smoked gallery glass. */
+.jelly-card,
+.glass {
+  background: linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.014) 55%, rgba(212,175,55,.018));
+  border-color: rgba(255,255,255,.085);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 22px 80px rgba(0,0,0,.28);
+}
+
+.jelly-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212,175,55,.22);
+}
+
+/* Buttons stay premium but stop competing with the artist name. */
+.jelly-button {
+  letter-spacing: .22em;
+}
+
+/* Better keyboard navigation. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 1px solid var(--gq-gold-soft);
+  outline-offset: 4px;
+}
+
+/* Catalogue is useful, but should never cover content on narrow screens. */
+.catalogue-tab {
+  z-index: 45;
+}
+
+/* Song artwork gets a consistent gallery treatment. */
+.artwork-shell,
+.artwork-large {
+  background:
+    radial-gradient(circle at 50% 0, rgba(212,175,55,.13), transparent 58%),
+    #040404;
+}
+
+/* The visual world gets more breathing room on large screens. */
+#visuals .jelly-card p {
+  max-width: 24rem;
+}
+
+/* Live/community controls should feel like one coherent console. */
+#jukebox select,
+#jukebox textarea,
+#jukebox input,
+#recommend select,
+#recommend textarea,
+#recommend input {
+  border-radius: 12px;
+}
+
+/* Keep long community feeds usable instead of growing the entire page forever. */
+#jukebox .overflow-auto {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212,175,55,.3) transparent;
+}
+
+/* Mobile: remove decorative cursor systems and oversized visual staging. */
+@media (max-width: 767px) {
+  .cursor-core,
+  .cursor-ring,
+  .cursor-aura {
+    display: none !important;
+  }
+
+  nav {
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+  }
+
+  nav .jelly-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .catalogue-tab {
+    top: auto !important;
+    bottom: 16px !important;
+    right: 12px !important;
+    transform: none !important;
+    writing-mode: horizontal-tb !important;
+    border: 1px solid rgba(212,175,55,.28);
+    border-radius: 999px;
+    padding: 10px 14px !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  }
+
+  .catalogue-tab svg { margin: 0 !important; }
+
+  main > section {
+    scroll-margin-top: 72px;
+  }
+
+  .hero-title {
+    font-size: 24vw !important;
+    line-height: .78 !important;
+  }
+
+  main > section:first-of-type {
+    min-height: auto !important;
+    padding-top: 7.5rem !important;
+  }
+
+  main > section:first-of-type .relative.min-h-\[520px\] {
+    min-height: 390px;
+    transform: scale(.92);
+    transform-origin: center;
+  }
+
+  #visuals,
+  #music,
+  #jukebox,
+  #recommend,
+  #arena {
+    padding-top: 5.5rem !important;
+    padding-bottom: 5.5rem !important;
+  }
+
+  #visuals h2,
+  #music h2,
+  #jukebox h2,
+  #recommend h2,
+  #arena h2 {
+    font-size: 2.35rem !important;
+    line-height: 1.02;
+  }
+
+  #visuals .grid {
+    grid-template-columns: 1fr !important;
+    grid-auto-rows: 220px !important;
+  }
+
+  #visuals .md\:col-span-2,
+  #visuals .md\:row-span-2 {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .jelly-card {
+    border-radius: 22px;
+  }
+
+  /* Stop decorative hover lifts from feeling broken on touch devices. */
+  .jelly-card:hover {
+    transform: none;
+  }
+}
+
+/* Respect OS-level motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Avoid loading/playing decorative videos while the user asks for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  main video { animation: none !important; }
+}
