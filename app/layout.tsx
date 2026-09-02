@@ -1,8 +1,10 @@
 import './globals.css'
 import './geetqar-refinement.css'
 import './geetqar-polish.css'
+import './geetqar-universe.css'
 import type { Metadata } from 'next'
 import { GeetqarExperienceConsole } from '@/components/geetqar-experience-console'
+import { GeetqarMusicUniverse } from '@/components/geetqar-music-universe'
 
 const icon = '/icon.svg?v=5'
 const siteUrl = 'https://geetqar.vercel.app'
@@ -31,5 +33,5 @@ const structuredData = {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body className="grain">{children}<GeetqarExperienceConsole /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} /></body></html>
+  return <html lang="en"><body className="grain">{children}<GeetqarMusicUniverse /><GeetqarExperienceConsole /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} /></body></html>
 }
