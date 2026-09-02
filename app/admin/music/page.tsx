@@ -1,7 +1,7 @@
 'use client'
 
 import {useEffect,useState} from 'react'
-import {ArrowLeft,Save,Star} from 'lucide-react'
+import {ArrowLeft,Save,Star,Sparkles} from 'lucide-react'
 import {useRouter} from 'next/navigation'
 import {createSupabaseBrowserClient} from '@/lib/supabase-browser'
 
