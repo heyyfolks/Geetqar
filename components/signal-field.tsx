@@ -233,9 +233,9 @@ export function SignalField() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-7 flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
-            <p className="text-[10px] tracking-[.4em] text-gold">INTERLUDE / THE GEETQAR SIGNAL</p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-[-.03em] md:text-6xl">The website listens.</h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-white/35">Your cursor becomes an instrument. Bass pushes the field, mids bend the orbit, highs wake the particles.</p>
+            <p className="text-[10px] tracking-[.4em] text-gold">NOW PLAYING / INTERACTIVE FREQUENCY</p>
+            <h2 className="mt-3 text-4xl font-semibold tracking-[-.03em] md:text-6xl">Turn it up.</h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/35">Hit play, then move through the field. The low end moves the rings; the rest follows.</p>
           </div>
           <div className="flex items-center gap-2">
             {modes.map((item) => <button key={item} onClick={() => setMode(item)} aria-pressed={mode === item} className={`border px-3 py-2 text-[9px] tracking-[.2em] transition ${mode === item ? 'border-gold/60 bg-gold/10 text-gold' : 'border-white/10 text-white/30 hover:border-white/25 hover:text-white/60'}`}>{item}</button>)}
@@ -247,11 +247,11 @@ export function SignalField() {
             <div className="text-center">
               <div className={`mx-auto mb-4 h-2.5 w-2.5 rounded-full bg-gold shadow-[0_0_32px_rgba(212,175,55,.9)] ${active ? 'animate-pulse' : ''}`} />
               <p className="text-[9px] tracking-[.5em] text-white/40">SIGNAL {active ? 'LIVE' : 'STANDBY'} / {String(signal).padStart(2, '0')}</p>
-              <p className="mt-3 max-w-sm text-xs leading-6 text-white/25">Play any GEETQAR track. Move. Click. Let the sound change the room.</p>
+              <p className="mt-3 max-w-sm text-xs leading-6 text-white/25">Start a track, then move or tap the field.</p>
             </div>
           </div>
           <div className="pointer-events-none absolute bottom-4 left-5 right-5 flex justify-between text-[8px] tracking-[.25em] text-white/20">
-            <span>MOVE = SHAPE</span><span>CLICK = IMPACT</span><span>SOUND = SIGNAL</span>
+            <span>MOVE = MOTION</span><span>TAP = IMPACT</span><span>SOUND = SIGNAL</span>
           </div>
         </div>
       </div>
