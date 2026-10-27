@@ -38,6 +38,26 @@ export function cleanTitle(raw: string): string {
   return t.length > 64 ? `${t.slice(0, 61).trimEnd()}…` : t
 }
 
+const LYRIC_STOP = /^(follow|credits?|©|instagram|youtube|stream|produced|written|composed|available|subscribe|song\s*:|artist\s*:|singer\s*:|language|genre|music\s*:|lyrics\s*\/|#+\s|if you)/i
+
+/** Pulls lyric lines out of a description that has a "Lyrics:" block. Returns [] when there isn't one. */
+export function parseLyrics(raw: string): string[] {
+  const text = decode(raw).replace(/\r/g, '')
+  const marker = text.search(/(?:song\s+)?lyrics\s*:/i)
+  if (marker < 0) return []
+  const after = text.slice(marker).replace(/^[^\n]*\n?/, '')
+  const out: string[] = []
+  for (const original of after.split('\n')) {
+    const line = original.replace(/[*_`]/g, '').replace(/[\p{Extended_Pictographic}\u200d\ufe0f]/gu, '').replace(/\s+/g, ' ').trim()
+    if (!line) continue
+    if (LYRIC_STOP.test(line)) break
+    if (line.length < 8 || line.length > 110 || /https?:|@/.test(line)) continue
+    if (!out.includes(line)) out.push(line)
+    if (out.length >= 48) break
+  }
+  return out
+}
+
 function cleanDescription(raw: string) {
   return decode(raw)
     .replace(/https?:\/\/\S+/g, '')
@@ -89,6 +109,7 @@ export async function getCatalog(): Promise<Track[]> {
           published: entry.match(/<published>([^<]+)<\/published>/)?.[1]?.slice(0, 10) || '',
           views: Number(entry.match(/<media:statistics views="(\d+)"/)?.[1] || 0),
           description: cleanDescription(entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || ''),
+          lyrics: parseLyrics(entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || ''),
         }
       })
       .filter((track): track is Track => track !== null)

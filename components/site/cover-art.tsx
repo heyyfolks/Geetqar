@@ -177,27 +177,30 @@ function proceduralArt(ctx: CanvasRenderingContext2D, S: number, mode: Vibe['mod
   ctx.globalCompositeOperation = 'source-over'
 }
 
-export function CoverArt({ id, name, kind, year, size = 640, label = true, onPalette }: Props) {
-  const ref = useRef<HTMLCanvasElement>(null)
-  const paletteRef = useRef(onPalette)
-  useEffect(() => { paletteRef.current = onPalette }, [onPalette])
+export type PaintOptions = {
+  id: string; name: string; kind: string; year: string
+  size?: number; label?: boolean
+  /** 0 = the track's own vibe; 1..4 pick a different procedural style and seed */
+  variant?: number
+  /** false = skip the YouTube thumbnail (pure generative art, never taints the canvas) */
+  thumb?: boolean
+}
 
-  useEffect(() => {
-    let cancelled = false
-    const canvas = ref.current
-    if (!canvas) return
-    const S = size
-    canvas.width = S; canvas.height = S
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+const STYLE_ORDER: Vibe[] = [DEFAULT_VIBE, ...VIBES]
 
-    const vibe = VIBES.find((v) => v.re.test(name)) || DEFAULT_VIBE
-    const r = rng(hash(`${id}:${name}`))
+/** Paints a square cover onto `canvas`. Resolves with the [colour, colour] palette used, or null if cancelled. */
+export async function paintCover(canvas: HTMLCanvasElement, opts: PaintOptions, cancelled: () => boolean = () => false): Promise<[string, string] | null> {
+  const { id, name, kind, year, size: S = 640, label = true, variant = 0, thumb: useThumb = true } = opts
+  canvas.width = S; canvas.height = S
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
 
-    ;(async () => {
-      const thumb = await getThumb(id)
-      try { await document.fonts.ready } catch { /* ignore */ }
-      if (cancelled) return
+  const vibe = variant > 0 ? STYLE_ORDER[variant % STYLE_ORDER.length] : VIBES.find((v) => v.re.test(name)) || DEFAULT_VIBE
+  const r = rng(hash(`${id}:${name}:${variant}`))
+
+  const thumb = useThumb ? await getThumb(id) : null
+  try { await document.fonts.ready } catch { /* ignore */ }
+  if (cancelled()) return null
 
       const info = thumb ? analyse(thumb.img, thumb.cors) : null
       const [p1, p2] = info?.palette || [vibe.pal[0], mix(vibe.pal[1], vibe.pal[0], 0.2)]
@@ -257,9 +260,21 @@ export function CoverArt({ id, name, kind, year, size = 640, label = true, onPal
         ctx.shadowBlur = 0
       }
 
-      paletteRef.current?.([p1, p2])
-    })()
+      return [p1, p2]
+}
 
+export function CoverArt({ id, name, kind, year, size = 640, label = true, onPalette }: Props) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  const paletteRef = useRef(onPalette)
+  useEffect(() => { paletteRef.current = onPalette }, [onPalette])
+
+  useEffect(() => {
+    let cancelled = false
+    const canvas = ref.current
+    if (!canvas) return
+    paintCover(canvas, { id, name, kind, year, size, label }, () => cancelled).then((palette) => {
+      if (palette && !cancelled) paletteRef.current?.(palette)
+    })
     return () => { cancelled = true }
   }, [id, name, kind, year, size, label])
 

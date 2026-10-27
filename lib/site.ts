@@ -5,9 +5,9 @@ export const SOCIAL = {
 
 export const NAV = [
   { href: '#music', label: 'MUSIC' },
+  { href: '#cards', label: 'LYRIC CARDS' },
   { href: '#craft', label: 'THE CRAFT' },
   { href: '#work', label: 'WORK WITH ME' },
-  { href: '#room', label: 'LIVE ROOM' },
 ] as const
 
 export type TrackKind = 'Official Audio' | 'Music Video' | 'Lyric Video' | 'Cover' | 'Mashup' | 'Single'
@@ -23,4 +23,6 @@ export type Track = {
   published: string
   views: number
   description: string
+  /** lyric lines parsed from the video description, if the artist pasted them there */
+  lyrics: string[]
 }
