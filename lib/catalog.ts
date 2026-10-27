@@ -15,12 +15,13 @@ function decode(value: string) {
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
 }
 
-export function kindOf(raw: string): TrackKind {
+export function kindOf(raw: string, description = ''): TrackKind {
   const t = raw.toLowerCase()
   if (/official music video/.test(t)) return 'Music Video'
   if (/lyric/.test(t)) return 'Lyric Video'
   if (/official audio/.test(t)) return 'Official Audio'
-  if (/\bcover\b|rendition/.test(t)) return 'Cover'
+  if (/original song by|(?:written|composed|produced|performed|music|lyrics)[^.\n]{0,48}?(?:by|:)\s*@?geetqar/i.test(description)) return 'Single'
+  if (/cover|rendition/.test(t) || /\bcover\b|og artist|original song credits|non-commercial|^\s*singer\s*:|\n\s*singer\s*:/i.test(description)) return 'Cover'
   if (/mashup/.test(t)) return 'Mashup'
   return 'Single'
 }
@@ -33,6 +34,7 @@ export function cleanTitle(raw: string): string {
   t = t.replace(/\s+/g, ' ')
   t = t.replace(/^[\s\p{Extended_Pictographic}‍️.…'"“”-]+|[\s\p{Extended_Pictographic}‍️.…'"“”-]+$/gu, '')
   if (!t) t = raw.trim()
+  if ((t.match(/"/g) || []).length % 2 === 1) t += '"'
   return t.length > 64 ? `${t.slice(0, 61).trimEnd()}…` : t
 }
 
@@ -83,7 +85,7 @@ export async function getCatalog(): Promise<Track[]> {
           id,
           title,
           name: cleanTitle(title),
-          kind: kindOf(title),
+          kind: kindOf(title, decode(entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || '')),
           published: entry.match(/<published>([^<]+)<\/published>/)?.[1]?.slice(0, 10) || '',
           views: Number(entry.match(/<media:statistics views="(\d+)"/)?.[1] || 0),
           description: cleanDescription(entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || ''),
