@@ -3,9 +3,10 @@ import type { Track, TrackKind } from './site'
 /**
  * The YouTube channel is the single source of truth for the catalogue.
  * Upload a video -> it appears on the site within a few minutes. No admin work.
- * Override with YOUTUBE_CHANNEL_ID in Vercel if the channel ever changes.
+ * The channel is found from its @handle; set YOUTUBE_CHANNEL_ID in Vercel to pin it instead.
+ * (UC-9-kyTW8ZkZNDHQJ6FgpwQ is YouTube's own generic "Music" channel, not GEETQAR's.)
  */
-export const CHANNEL_ID = process.env.YOUTUBE_CHANNEL_ID || 'UC-9-kyTW8ZkZNDHQJ6FgpwQ'
+const HANDLE = process.env.YOUTUBE_HANDLE || 'geetqar'
 const UA = 'Mozilla/5.0 (compatible; GeetqarSite/1.0; +https://geetqar.vercel.app)'
 
 function decode(value: string) {
@@ -44,9 +45,27 @@ function cleanDescription(raw: string) {
     .slice(0, 700)
 }
 
+export async function resolveChannelId(): Promise<string | null> {
+  if (process.env.YOUTUBE_CHANNEL_ID) return process.env.YOUTUBE_CHANNEL_ID
+  try {
+    const response = await fetch(`https://www.youtube.com/@${HANDLE}`, {
+      headers: { 'User-Agent': UA, 'Accept-Language': 'en' },
+      next: { revalidate: 86400 },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!response.ok) return null
+    const html = await response.text()
+    return html.match(/"channelId":"(UC[\w-]{22})"/)?.[1] || html.match(/channel_id=(UC[\w-]{22})/)?.[1] || html.match(/"externalId":"(UC[\w-]{22})"/)?.[1] || null
+  } catch {
+    return null
+  }
+}
+
 export async function getCatalog(): Promise<Track[]> {
   try {
-    const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`, {
+    const channelId = await resolveChannelId()
+    if (!channelId) return []
+    const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
       headers: { 'User-Agent': UA },
       next: { revalidate: 300 },
       signal: AbortSignal.timeout(8000),
