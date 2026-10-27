@@ -43,7 +43,7 @@ const LYRIC_STOP = /^(follow|credits?|©|instagram|youtube|stream|produced|writt
 /** Pulls lyric lines out of a description that has a "Lyrics:" block. Returns [] when there isn't one. */
 export function parseLyrics(raw: string): string[] {
   const text = decode(raw).replace(/\r/g, '')
-  const marker = text.search(/(?:song\s+)?lyrics\s*:/i)
+  const marker = text.search(/(?:song\s+)?lyrics\s*:[ \t]*\n/i)
   if (marker < 0) return []
   const after = text.slice(marker).replace(/^[^\n]*\n?/, '')
   const out: string[] = []
@@ -55,7 +55,7 @@ export function parseLyrics(raw: string): string[] {
     if (!out.includes(line)) out.push(line)
     if (out.length >= 48) break
   }
-  return out
+  return out.length >= 2 ? out : []
 }
 
 function cleanDescription(raw: string) {
@@ -101,15 +101,18 @@ export async function getCatalog(): Promise<Track[]> {
         const id = entry.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)?.[1]
         const title = decode(entry.match(/<title>([^<]+)<\/title>/)?.[1] || '')
         if (!id || !title) return null
+        const rawDescription = entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || ''
+        const kind = kindOf(title, decode(rawDescription))
         return {
           id,
           title,
           name: cleanTitle(title),
-          kind: kindOf(title, decode(entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || '')),
+          kind,
           published: entry.match(/<published>([^<]+)<\/published>/)?.[1]?.slice(0, 10) || '',
           views: Number(entry.match(/<media:statistics views="(\d+)"/)?.[1] || 0),
-          description: cleanDescription(entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || ''),
-          lyrics: parseLyrics(entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || ''),
+          description: cleanDescription(rawDescription),
+          // only the artist's own songs: covers and mashups are other people's lyrics
+          lyrics: kind === 'Cover' || kind === 'Mashup' ? [] : parseLyrics(rawDescription),
         }
       })
       .filter((track): track is Track => track !== null)
