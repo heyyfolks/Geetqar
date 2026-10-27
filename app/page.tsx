@@ -1,48 +1,30 @@
-'use client'
+import { HomeClient } from '@/components/site/home-client'
+import { getCatalog } from '@/lib/catalog'
 
-import { useEffect, useState } from 'react'
-import { SiteNav } from '@/components/site/nav'
-import { Hero, Marquee } from '@/components/site/hero'
-import { Tracks } from '@/components/site/tracks'
-import { Videos } from '@/components/site/videos'
-import { Craft, Work } from '@/components/site/craft'
-import { LiveRoom } from '@/components/site/live-room'
-import { SiteFooter } from '@/components/site/footer'
-import type { Song, YTVideo } from '@/lib/site'
+// The page is rebuilt in the background at most every 5 minutes, and the client refreshes the list on top of that.
+export const revalidate = 300
 
-export default function Home() {
-  const [songs, setSongs] = useState<Song[]>([])
-  const [songsLoading, setSongsLoading] = useState(true)
-  const [videos, setVideos] = useState<YTVideo[]>([])
-  const [videosLoading, setVideosLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/songs', { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : { songs: [] }))
-      .then((data) => setSongs(data.songs || []))
-      .catch(() => setSongs([]))
-      .finally(() => setSongsLoading(false))
-
-    fetch('/api/youtube/latest')
-      .then((response) => (response.ok ? response.json() : { videos: [] }))
-      .then((data) => setVideos(data.videos || []))
-      .catch(() => setVideos([]))
-      .finally(() => setVideosLoading(false))
-  }, [])
-
-  const latest = songs.find((song) => song.featured) || songs[0]
-
+export default async function Home() {
+  const tracks = await getCatalog()
+  const playlist = {
+    '@context': 'https://schema.org',
+    '@type': 'MusicPlaylist',
+    name: 'GEETQAR',
+    url: 'https://geetqar.vercel.app',
+    numTracks: tracks.length,
+    byArtist: { '@type': 'MusicGroup', name: 'GEETQAR' },
+    track: tracks.map((t) => ({
+      '@type': 'MusicRecording',
+      name: t.name,
+      url: `https://www.youtube.com/watch?v=${t.id}`,
+      datePublished: t.published,
+      byArtist: { '@type': 'MusicGroup', name: 'GEETQAR' },
+    })),
+  }
   return (
-    <main>
-      <SiteNav />
-      <Hero latest={latest} />
-      <Marquee />
-      <Tracks songs={songs} loading={songsLoading} />
-      <Videos videos={videos} loading={videosLoading} />
-      <Craft />
-      <Work />
-      <LiveRoom titles={songs.map((song) => song.title)} />
-      <SiteFooter />
-    </main>
+    <>
+      <HomeClient initialTracks={tracks} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(playlist) }} />
+    </>
   )
 }

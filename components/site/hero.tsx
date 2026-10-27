@@ -2,11 +2,11 @@
 
 import { motion } from 'framer-motion'
 import { Play, Youtube } from 'lucide-react'
-import { SOCIAL, type Song } from '@/lib/site'
+import { SOCIAL, type Track } from '@/lib/site'
 
 const ROLES = ['LIKHTA HU', 'GAATA HU', 'BANATA HU', 'MIX + MASTER']
 
-export function Hero({ latest }: { latest?: Song }) {
+export function Hero({ latest }: { latest?: Track }) {
   return (
     <section id="top" className="gx-hero" aria-labelledby="hero-title">
       <div className="gx-wrap gx-hero-grid">
@@ -17,10 +17,10 @@ export function Hero({ latest }: { latest?: Song }) {
           <p className="gx-tag">Hinglish R&amp;B, soul, drill and lo-fi, written, sung, produced and mastered by one person. Raat ke gaane, the kind you replay fourteen times.</p>
           <div className="gx-cta-row">
             <a className="gx-btn gx-btn-solid" href="#music"><Play size={14} fill="currentColor" /> LISTEN NOW</a>
-            <a className="gx-btn gx-btn-line" href={SOCIAL.youtube} target="_blank" rel="noreferrer"><Youtube size={15} /> WATCH ON YOUTUBE</a>
+            <a className="gx-btn gx-btn-line" href={SOCIAL.youtube} target="_blank" rel="noreferrer"><Youtube size={15} /> YOUTUBE CHANNEL</a>
           </div>
           {latest && (
-            <a className="gx-latest" href="#music"><span className="gx-dot" /> OUT NOW <strong>{latest.title}</strong> ↗</a>
+            <a className="gx-latest" href="#music"><span className="gx-dot" /> OUT NOW <strong>{latest.name}</strong> ↗</a>
           )}
         </motion.div>
 

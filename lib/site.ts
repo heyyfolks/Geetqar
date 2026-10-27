@@ -5,24 +5,22 @@ export const SOCIAL = {
 
 export const NAV = [
   { href: '#music', label: 'MUSIC' },
-  { href: '#watch', label: 'WATCH' },
   { href: '#craft', label: 'THE CRAFT' },
   { href: '#work', label: 'WORK WITH ME' },
   { href: '#room', label: 'LIVE ROOM' },
 ] as const
 
-export type Song = {
-  id: string
-  title: string
-  slug: string
-  youtube?: string
-  instagram?: string
-  description?: string
-  coverUrl?: string
-  featured?: boolean
-  releaseDate?: string
-  genre?: string
-  mood?: string[]
-}
+export type TrackKind = 'Official Audio' | 'Music Video' | 'Lyric Video' | 'Cover' | 'Mashup' | 'Single'
 
-export type YTVideo = { id: string; title: string; published?: string }
+/** One upload from the YouTube channel, cleaned up for display. */
+export type Track = {
+  id: string
+  /** original YouTube title */
+  title: string
+  /** cleaned display name (hashtags, "| Geetqar", "(Official Audio)" removed) */
+  name: string
+  kind: TrackKind
+  published: string
+  views: number
+  description: string
+}
