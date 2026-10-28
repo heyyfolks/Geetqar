@@ -162,6 +162,7 @@ async function fromFeed(channelId: string): Promise<Raw[]> {
 async function fromChannelPage(): Promise<Raw[]> {
   const html = await get(`https://www.youtube.com/@${HANDLE}/videos`, 'channel-page', BROWSER)
   const json = html?.match(/ytInitialData\s*=\s*(\{[\s\S]*?\});\s*<\/script>/)?.[1]
+  diag.push(`page ${html ? html.length : 0} bytes, data ${json ? json.length : 'missing'}, consent ${html?.includes('consent.youtube.com') ? 'yes' : 'no'}, lockups ${(json?.match(/LOCKUP_CONTENT_TYPE_VIDEO/g) || []).length}, videoRenderers ${(json?.match(/"videoRenderer"/g) || []).length}`)
   if (!json) return []
   const out: Raw[] = []
   const seen = new Set<string>()
@@ -169,11 +170,17 @@ async function fromChannelPage(): Promise<Raw[]> {
     if (!node || typeof node !== 'object') return
     if (Array.isArray(node)) return node.forEach(walk)
     const n = node as Record<string, any>
-    const id = n.videoId
-    const title = n.title?.runs?.[0]?.text || n.title?.simpleText
+    // classic layout (videoRenderer) and the newer one (lockupViewModel)
+    const id = n.videoId || (n.contentType === 'LOCKUP_CONTENT_TYPE_VIDEO' ? n.contentId : undefined)
+    const title = n.title?.runs?.[0]?.text || n.title?.simpleText || n.metadata?.lockupMetadataViewModel?.title?.content
     if (typeof id === 'string' && /^[\w-]{11}$/.test(id) && typeof title === 'string' && !seen.has(id)) {
       seen.add(id)
-      const views = Number(String(n.viewCountText?.simpleText || '').replace(/[^\d]/g, '')) || 0
+      let views = Number(String(n.viewCountText?.simpleText || '').replace(/[^\d]/g, '')) || 0
+      if (!views) {
+        const rows = JSON.stringify(n.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows || '')
+        const match = rows.match(/"content":"([\d.,]+)([KM]?) views?"/i)
+        if (match) views = Math.round(parseFloat(match[1].replace(/,/g, '')) * (match[2].toUpperCase() === 'M' ? 1e6 : match[2].toUpperCase() === 'K' ? 1e3 : 1))
+      }
       out.push({ id, title, description: '', published: '', views })
     }
     Object.values(n).forEach(walk)
