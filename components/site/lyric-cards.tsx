@@ -160,7 +160,7 @@ export function LyricCards({ tracks }: { tracks: Track[] }) {
   return (
     <section id="cards" className="gx-section gx-cards" aria-labelledby="cards-title" style={{ background: 'var(--ink-2)' }}>
       <div className="gx-wrap">
-        <p className="gx-kicker">02 / Lyric cards</p>
+        <p className="gx-kicker">03 / Lyric cards</p>
         <h2 id="cards-title" className="gx-h2">Turn a lyric <em>into a poster.</em></h2>
         <p className="gx-lede">Pick a track, choose the lines you like, and save a poster for your story or feed. It is made on your device and nothing is uploaded. New songs are added automatically.</p>
 

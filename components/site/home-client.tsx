@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react'
 import { SiteNav } from '@/components/site/nav'
 import { Hero, Marquee } from '@/components/site/hero'
 import { MusicExperience } from '@/components/site/music-experience'
+import { MoodRoom } from '@/components/site/mood-room'
 import { LyricCards } from '@/components/site/lyric-cards'
 import { Craft, Work } from '@/components/site/craft'
+import { FollowStrip } from '@/components/site/follow-strip'
 import { SongIndex } from '@/components/site/song-index'
 import { SiteFooter } from '@/components/site/footer'
 import type { Track } from '@/lib/site'
@@ -36,9 +38,11 @@ export function HomeClient({ initialTracks }: { initialTracks: Track[] }) {
       <Hero latest={tracks[0]} />
       <Marquee />
       <MusicExperience tracks={tracks} loading={loading} />
+      <MoodRoom tracks={tracks} />
       <LyricCards tracks={tracks} />
       <Craft />
       <Work />
+      <FollowStrip latest={tracks[0]} />
       <SongIndex tracks={tracks} />
       <SiteFooter />
     </main>

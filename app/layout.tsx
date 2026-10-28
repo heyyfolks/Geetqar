@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   icons: { icon, shortcut: icon, apple: icon },
   openGraph: { title, description, url: '/', siteName: 'GEETQAR', type: 'website', locale: 'en_IN' },
   twitter: { card: 'summary_large_image', title, description },
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION || undefined, other: process.env.BING_SITE_VERIFICATION ? { 'msvalidate.01': process.env.BING_SITE_VERIFICATION } : undefined },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 } },
 }
 

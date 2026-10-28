@@ -9,6 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const latest = tracks.map((t) => t.published).filter(Boolean).sort().pop()
   return [
     { url: SITE_URL, lastModified: latest ? new Date(latest) : new Date(), changeFrequency: 'weekly', priority: 1 },
+    { url: `${SITE_URL}/songs`, lastModified: latest ? new Date(latest) : undefined, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${SITE_URL}/about`, changeFrequency: 'monthly', priority: 0.7 },
     ...tracks.map((track) => ({
       url: `${SITE_URL}/songs/${track.slug}`,

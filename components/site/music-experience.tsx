@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Disc3, Film, Maximize2, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward, Volume2, VolumeX, X, Youtube } from 'lucide-react'
 import { CoverArt } from '@/components/site/cover-art'
+import { ShareButton } from '@/components/site/share-button'
 import { SOCIAL, type Track } from '@/lib/site'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -32,6 +33,7 @@ const isNew = (d: string) => { const t = +new Date(d); return Number.isFinite(t)
 const ORIGINAL: Track['kind'][] = ['Single', 'Official Audio', 'Music Video', 'Lyric Video']
 
 type Filter = 'all' | 'originals' | 'covers'
+type MoodQueue = { label: string; ids: string[] }
 
 export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading: boolean }) {
   const [filter, setFilter] = useState<Filter>('all')
@@ -48,6 +50,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
   const [pal, setPal] = useState<[string, string]>(['#ff6a3d', '#8a2146'])
   const [note, setNote] = useState<{ text: string; id: string } | null>(null)
   const [inView, setInView] = useState(true)
+  const [mood, setMood] = useState<MoodQueue | null>(null)
 
   const playerRef = useRef<any>(null)
   const targetRef = useRef<HTMLDivElement>(null)
@@ -56,7 +59,10 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
   const initRef = useRef(false)
   const pendingRef = useRef<{ id: string; play: boolean } | null>(null)
 
-  const visible = useMemo(() => tracks.filter((t) => (filter === 'all' ? true : filter === 'originals' ? ORIGINAL.includes(t.kind) : !ORIGINAL.includes(t.kind))), [tracks, filter])
+  const visible = useMemo(() => {
+    if (mood) return mood.ids.map((id) => tracks.find((t) => t.id === id)).filter((t): t is Track => Boolean(t))
+    return tracks.filter((t) => (filter === 'all' ? true : filter === 'originals' ? ORIGINAL.includes(t.kind) : !ORIGINAL.includes(t.kind)))
+  }, [tracks, filter, mood])
   const current = tracks.find((t) => t.id === currentId) || null
 
   // latest values for callbacks that outlive a render (YouTube events, media keys)
@@ -68,6 +74,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
   }, [])
 
   const stepRef = useRef<(dir: 1 | -1) => void>(() => {})
+  const selectRef = useRef<(id: string, play?: boolean) => void>(() => {})
 
   const initPlayer = useCallback(async () => {
     if (initRef.current) return
@@ -117,6 +124,21 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
       void initPlayer()
     }
   }, [tracks, announce, initPlayer])
+
+  selectRef.current = select
+
+  // The Moods section sends a queue here: show only that mood's songs, start playing, and scroll to the player.
+  useEffect(() => {
+    const onMood = (event: Event) => {
+      const detail = (event as CustomEvent<{ label: string; ids: string[]; play: string }>).detail
+      if (!detail?.ids?.length) return
+      setMood({ label: detail.label, ids: detail.ids })
+      selectRef.current(detail.play, true)
+      document.getElementById('music')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    window.addEventListener('gx:mood', onMood)
+    return () => window.removeEventListener('gx:mood', onMood)
+  }, [])
 
   const step = useCallback((dir: 1 | -1) => {
     const { visible: list, currentId: cid, shuffle: sh } = live.current
@@ -296,6 +318,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
                   <div className="gx-sub">{showCurrent ? `${showCurrent.kind} · ${fmtDate(showCurrent.published)}${showCurrent.views ? ` · ${fmtViews(showCurrent.views)} views` : ''}` : ''}{showCurrent && isNew(showCurrent.published) && <em>NEW</em>}</div>
                   <h3 className="gx-title">{showCurrent?.name}</h3>
                   <div className={`gx-bars ${playing ? 'on' : ''}`} aria-hidden="true">{Array.from({ length: 36 }).map((_, i) => <i key={i} style={{ animationDelay: `${(i * 67) % 800}ms`, animationDuration: `${0.7 + ((i * 29) % 60) / 100}s` }} />)}</div>
+                  {showCurrent && <div className="gx-share"><ShareButton path={`/songs/${showCurrent.slug}`} title={`${showCurrent.name} by GEETQAR`} className="gx-chip" /> <a className="gx-chip" href={`/songs/${showCurrent.slug}`}>SONG PAGE</a></div>}
                   {note && <p className="gx-note">{note.text} <a href={`https://youtu.be/${note.id}`} target="_blank" rel="noreferrer">Watch on YouTube ↗</a></p>}
                 </div>
 
@@ -329,8 +352,9 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
 
               <aside className="gx-queue" aria-label="Track list">
                 <div className="gx-chips" role="tablist">
+                  {mood && <button className="gx-chip on" onClick={() => setMood(null)} aria-label={`Clear ${mood.label} mood`}>Mood: {mood.label} ✕</button>}
                   {([['all', 'All'], ['originals', 'Originals'], ['covers', 'Covers & mashups']] as const).map(([key, text]) => (
-                    <button key={key} role="tab" aria-selected={filter === key} className={`gx-chip ${filter === key ? 'on' : ''}`} onClick={() => setFilter(key)}>{text}</button>
+                    <button key={key} role="tab" aria-selected={!mood && filter === key} className={`gx-chip ${!mood && filter === key ? 'on' : ''}`} onClick={() => { setMood(null); setFilter(key) }}>{text}</button>
                   ))}
                   <span className="gx-count">{visible.length} TRACKS</span>
                 </div>

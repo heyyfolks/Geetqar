@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { PageShell } from '@/components/site/page-shell'
+import { ShareButton } from '@/components/site/share-button'
 import { LiteYouTube } from '@/components/site/lite-youtube'
 import { getCatalogForCache } from '@/lib/catalog'
 import { SITE_URL, SOCIAL, type Track } from '@/lib/site'
@@ -98,7 +99,8 @@ export default async function SongPage({ params }: Params) {
         <div className="gx-cta-row">
           <a className="gx-btn gx-btn-solid" href={`https://www.youtube.com/watch?v=${track.id}`} target="_blank" rel="noreferrer">WATCH ON YOUTUBE</a>
           <a className="gx-btn gx-btn-line" href={`/#music`}>PLAY IN THE PLAYER</a>
-          <a className="gx-btn gx-btn-line" href={SOCIAL.youtube} target="_blank" rel="noreferrer">SUBSCRIBE</a>
+          <a className="gx-btn gx-btn-line" href={SOCIAL.subscribe} target="_blank" rel="noreferrer">SUBSCRIBE</a>
+          <ShareButton path={`/songs/${track.slug}`} title={`${track.name} by GEETQAR`} />
         </div>
 
         {track.lyrics.length > 0 && (

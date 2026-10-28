@@ -14,7 +14,7 @@ export function Craft() {
   return (
     <section id="craft" className="gx-section" aria-labelledby="craft-title">
       <div className="gx-wrap">
-        <p className="gx-kicker">03 / What I make</p>
+        <p className="gx-kicker">04 / What I make</p>
         <h2 id="craft-title" className="gx-h2">Made start to finish <em>by one artist.</em></h2>
         <p className="gx-lede">Lyrics, vocals, production, mixing and mastering are all done by the same person, so each song sounds like one idea.</p>
         <div className="gx-craft">
@@ -44,7 +44,7 @@ export function Work() {
     <section id="work" className="gx-section gx-work" aria-labelledby="work-title">
       <div className="gx-wrap gx-work-grid">
         <div>
-          <p className="gx-kicker">04 / Work with me</p>
+          <p className="gx-kicker">05 / Work with me</p>
           <h2 id="work-title" className="gx-h2">Need help <em>finishing a song?</em></h2>
           <p className="gx-lede">For artists, singers and anyone with an unfinished idea. Tell me what you are making and how it should feel. A direct message on Instagram is the fastest way to reach me.</p>
           <div className="gx-cta-row">

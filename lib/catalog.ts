@@ -236,6 +236,6 @@ export async function getCatalog(): Promise<Track[]> {
  */
 export async function getCatalogForCache(): Promise<Track[]> {
   const tracks = await getCatalog()
-  if (!tracks.length && process.env.NEXT_PHASE !== 'phase-production-build') throw new Error('YouTube catalogue unavailable')
+  if (!tracks.length && process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE !== 'phase-production-build') throw new Error('YouTube catalogue unavailable')
   return tracks
 }

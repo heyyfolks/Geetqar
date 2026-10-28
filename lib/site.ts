@@ -5,15 +5,21 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://geetqar.ve
  * Uploads that should not appear on the site (matched against the YouTube title, case-insensitive).
  * Add a pattern here, or list video ids in the HIDDEN_VIDEOS env var (comma separated).
  */
+/** IndexNow key (public by design): the same text must exist at /<key>.txt. */
+export const INDEXNOW_KEY = '785bcc6f7666f2179ab410a117577a08'
+
 export const HIDDEN_TITLES: RegExp[] = [/^\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}\s*$/i, /black\s*suit/i]
 
 export const SOCIAL = {
   instagram: 'https://www.instagram.com/geetqar/',
   youtube: 'https://www.youtube.com/@geetqar',
+  /** Opens YouTube's "Subscribe?" confirmation straight away. */
+  subscribe: 'https://www.youtube.com/@geetqar?sub_confirmation=1',
 } as const
 
 export const NAV = [
   { href: '#music', label: 'MUSIC' },
+  { href: '#moods', label: 'MOODS' },
   { href: '#cards', label: 'LYRIC CARDS' },
   { href: '#craft', label: 'WHAT I MAKE' },
   { href: '#work', label: 'WORK WITH ME' },

@@ -17,7 +17,7 @@ export function Hero({ latest }: { latest?: Track }) {
           <p className="gx-tag">R&amp;B, soul, drill, lo-fi and classical, in Hindi and English. Written, sung, produced and mastered by one artist. New songs appear here as soon as they go live on YouTube.</p>
           <div className="gx-cta-row">
             <a className="gx-btn gx-btn-solid" href="#music"><Play size={14} fill="currentColor" /> LISTEN NOW</a>
-            <a className="gx-btn gx-btn-line" href={SOCIAL.youtube} target="_blank" rel="noreferrer"><Youtube size={15} /> YOUTUBE CHANNEL</a>
+            <a className="gx-btn gx-btn-line" href={SOCIAL.subscribe} target="_blank" rel="noreferrer"><Youtube size={15} /> SUBSCRIBE ON YOUTUBE</a>
           </div>
           {latest && (
             <a className="gx-latest" href="#music"><span className="gx-dot" /> OUT NOW <strong>{latest.name}</strong> ↗</a>

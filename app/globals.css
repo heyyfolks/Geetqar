@@ -373,3 +373,35 @@ button.gx-btn-line { border: 1px solid rgba(244, 236, 225, .28); color: var(--cr
 .gx-faq dt { font-family: var(--f-display); font-weight: 700; font-size: 1.15rem; }
 .gx-faq dd { margin: 6px 0 0; color: var(--muted); line-height: 1.7; max-width: 62ch; }
 .gx-about .gx-lede { margin-top: 22px; }
+
+/* ---------- moods ---------- */
+.gx-moods { overflow: hidden; transition: background .6s ease; }
+.gx-moods .gx-aura { opacity: .5; }
+.gx-mood-chips { margin-top: 34px; }
+.gx-mood-chips .gx-chip { text-transform: none; letter-spacing: .04em; font-size: 13px; font-family: var(--f-sans); font-weight: 600; padding: 11px 18px; }
+.gx-mood-stage { display: grid; gap: 32px; margin-top: 40px; align-items: center; }
+@media (min-width: 900px) { .gx-mood-stage { grid-template-columns: 1fr 1.2fr; gap: 64px; } }
+.gx-mood-line { font-family: var(--f-serif); font-style: italic; font-size: clamp(1.9rem, 5vw, 3.4rem); line-height: 1.05; margin: 0 0 28px; color: var(--cream); animation: gx-rise .6s ease both; }
+.gx-mood-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.gx-mood-list li { animation: gx-rise .5s ease both; }
+.gx-mood-list button { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; align-items: center; gap: 14px; padding: 8px 16px 8px 8px; border: 1px solid var(--line); border-radius: 14px; background: rgba(11,7,9,.45); backdrop-filter: blur(8px); transition: border-color .2s ease, transform .2s ease; }
+.gx-mood-list button:hover, .gx-mood-list button:focus-visible { border-color: var(--c1); transform: translateX(4px); }
+.gx-mood-list img { width: 96px; height: 54px; object-fit: cover; border-radius: 8px; flex: none; }
+.gx-mood-list span { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.gx-mood-list strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gx-mood-list small { font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+@keyframes gx-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .gx-mood-line, .gx-mood-list li { animation: none; } }
+
+/* ---------- follow strip, share ---------- */
+.gx-follow { border-top: 1px solid var(--line); padding-block: clamp(64px, 10vw, 120px); background: linear-gradient(120deg, rgba(138,33,70,.28), rgba(255,106,61,.12)); }
+.gx-follow-in { display: grid; gap: 32px; align-items: center; }
+@media (min-width: 900px) { .gx-follow-in { grid-template-columns: 1.4fr 1fr; gap: 64px; } }
+.gx-follow-btns { display: grid; gap: 12px; }
+.gx-follow .gx-lede strong { color: var(--cream); }
+.gx-more { font-family: var(--f-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ember-soft); margin-left: 14px; font-weight: 400; }
+
+.gx-share { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.gx-share .gx-chip { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.gx-mood-stage > * { min-width: 0; }
+.gx-moods .gx-aura { opacity: .85; }
