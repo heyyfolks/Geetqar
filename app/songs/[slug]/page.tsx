@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { PageShell } from '@/components/site/page-shell'
 import { LiteYouTube } from '@/components/site/lite-youtube'
-import { getCatalog } from '@/lib/catalog'
+import { getCatalogForCache } from '@/lib/catalog'
 import { SITE_URL, SOCIAL, type Track } from '@/lib/site'
 
 export const revalidate = 300
@@ -10,7 +10,7 @@ export const revalidate = 300
 type Params = { params: Promise<{ slug: string }> }
 
 export async function generateStaticParams() {
-  return (await getCatalog()).map((track) => ({ slug: track.slug }))
+  return (await getCatalogForCache()).map((track) => ({ slug: track.slug }))
 }
 
 function summary(track: Track) {
@@ -23,7 +23,7 @@ function summary(track: Track) {
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
-  const track = (await getCatalog()).find((t) => t.slug === slug)
+  const track = (await getCatalogForCache()).find((t) => t.slug === slug)
   if (!track) return { title: 'Song not found', robots: { index: false } }
   const title = `${track.name} by GEETQAR${track.lyrics.length ? ' (Lyrics & Video)' : ' (Official Video)'}`
   const description = summary(track)
@@ -41,7 +41,7 @@ const formatDate = (iso: string) => (iso ? new Date(iso).toLocaleDateString('en'
 
 export default async function SongPage({ params }: Params) {
   const { slug } = await params
-  const tracks = await getCatalog()
+  const tracks = await getCatalogForCache()
   const track = tracks.find((t) => t.slug === slug)
   if (!track) notFound()
 

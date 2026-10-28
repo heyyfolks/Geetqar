@@ -100,13 +100,19 @@ export async function getCatalog(): Promise<Track[]> {
   try {
     const channelId = await resolveChannelId()
     if (!channelId) return []
-    const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
-      headers: { 'User-Agent': UA },
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!response.ok) return []
-    const xml = await response.text()
+    let xml = ''
+    for (let attempt = 0; attempt < 3 && !xml.includes('<entry>'); attempt++) {
+      if (attempt) await new Promise((resolve) => setTimeout(resolve, 800 * attempt))
+      try {
+        const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
+          headers: { 'User-Agent': UA },
+          next: { revalidate: 300 },
+          signal: AbortSignal.timeout(8000),
+        })
+        if (response.ok) xml = await response.text()
+      } catch {}
+    }
+    if (!xml.includes('<entry>')) return []
     const tracks = xml
       .split('<entry>')
       .slice(1)
@@ -143,4 +149,14 @@ export async function getCatalog(): Promise<Track[]> {
   } catch {
     return []
   }
+}
+
+/**
+ * For cached (ISR) pages: an empty result means YouTube could not be reached, so throw instead of caching an empty page.
+ * Next.js then keeps serving the last good version and tries again. (During the build an empty catalogue is allowed.)
+ */
+export async function getCatalogForCache(): Promise<Track[]> {
+  const tracks = await getCatalog()
+  if (!tracks.length && process.env.NEXT_PHASE !== 'phase-production-build') throw new Error('YouTube catalogue unavailable')
+  return tracks
 }

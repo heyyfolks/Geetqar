@@ -1,12 +1,12 @@
 import { HomeClient } from '@/components/site/home-client'
-import { getCatalog } from '@/lib/catalog'
+import { getCatalogForCache } from '@/lib/catalog'
 import { SITE_URL } from '@/lib/site'
 
 // The page is rebuilt in the background at most every 5 minutes, and the client refreshes the list on top of that.
 export const revalidate = 300
 
 export default async function Home() {
-  const tracks = await getCatalog()
+  const tracks = await getCatalogForCache()
   const playlist = {
     '@context': 'https://schema.org',
     '@type': 'MusicPlaylist',
