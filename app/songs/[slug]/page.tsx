@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
   const track = (await getCatalogForCache()).find((t) => t.slug === slug)
   if (!track) return { title: 'Song not found', robots: { index: false } }
-  const title = `${track.name} by GEETQAR${track.lyrics.length ? ' (Lyrics & Video)' : ' (Official Video)'}`
+  const title = `${track.name} by GEETQAR${track.lyrics.length ? ' (Lyrics & Video)' : track.kind === 'Official Audio' ? ' (Official Audio)' : track.kind === 'Cover' ? ' (Cover)' : track.kind === 'Mashup' ? ' (Mashup)' : ' (Video)'}`
   const description = summary(track)
   const url = `/songs/${track.slug}`
   return {
