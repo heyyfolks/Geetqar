@@ -1,4 +1,4 @@
-import type { Track, TrackKind } from './site'
+import { HIDDEN_TITLES, SITE_URL, type Track, type TrackKind } from './site'
 
 /**
  * The YouTube channel is the single source of truth for the catalogue.
@@ -7,7 +7,7 @@ import type { Track, TrackKind } from './site'
  * (UC-9-kyTW8ZkZNDHQJ6FgpwQ is YouTube's own generic "Music" channel, not GEETQAR's.)
  */
 const HANDLE = process.env.YOUTUBE_HANDLE || 'geetqar'
-const UA = 'Mozilla/5.0 (compatible; GeetqarSite/1.0; +https://geetqar.vercel.app)'
+const UA = `Mozilla/5.0 (compatible; GeetqarSite/1.0; +${SITE_URL})`
 
 function decode(value: string) {
   return value
@@ -58,6 +58,19 @@ export function parseLyrics(raw: string): string[] {
   return out.length >= 2 ? out : []
 }
 
+export function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/, '')
+}
+
+const HIDDEN_IDS = (process.env.HIDDEN_VIDEOS || '').split(',').map((v) => v.trim()).filter(Boolean)
+
 function cleanDescription(raw: string) {
   return decode(raw)
     .replace(/https?:\/\/\S+/g, '')
@@ -94,7 +107,7 @@ export async function getCatalog(): Promise<Track[]> {
     })
     if (!response.ok) return []
     const xml = await response.text()
-    return xml
+    const tracks = xml
       .split('<entry>')
       .slice(1)
       .map((entry): Track | null => {
@@ -103,8 +116,10 @@ export async function getCatalog(): Promise<Track[]> {
         if (!id || !title) return null
         const rawDescription = entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || ''
         const kind = kindOf(title, decode(rawDescription))
+        if (HIDDEN_IDS.includes(id) || HIDDEN_TITLES.some((pattern) => pattern.test(title))) return null
         return {
           id,
+          slug: '',
           title,
           name: cleanTitle(title),
           kind,
@@ -116,6 +131,15 @@ export async function getCatalog(): Promise<Track[]> {
         }
       })
       .filter((track): track is Track => track !== null)
+    // unique, readable slugs; the video id is the fallback (e.g. all-Devanagari titles) and the tie-breaker
+    const used = new Set<string>()
+    for (const track of tracks) {
+      let slug = slugify(cleanTitle(track.title)) || track.id.toLowerCase()
+      if (used.has(slug)) slug = `${slug}-${track.id.toLowerCase().slice(0, 5)}`
+      used.add(slug)
+      track.slug = slug
+    }
+    return tracks
   } catch {
     return []
   }

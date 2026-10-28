@@ -1,11 +1,12 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import { GlobalAudioDock } from '@/components/global-audio-dock'
+import { SITE_URL, SOCIAL } from '@/lib/site'
 
 const icon = '/icon.svg?v=7'
-const siteUrl = 'https://geetqar.vercel.app'
-const title = 'GEETQAR | Songwriter, Singer & Producer'
-const description = 'GEETQAR (गीतकार) writes, sings, produces, mixes and masters original Hinglish R&B, soul, drill and lo-fi. Listen, watch, and work with him.'
+const siteUrl = SITE_URL
+const title = 'GEETQAR (गीतकार) | Official Site: Songs, Lyrics & Videos'
+const description = 'Official website of GEETQAR (गीतकार), an independent artist who writes, sings, produces, mixes and masters his own R&B, soul, drill, lo-fi and classical music. Listen, watch videos and read lyrics.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -15,10 +16,10 @@ export const metadata: Metadata = {
   authors: [{ name: 'GEETQAR', url: siteUrl }],
   creator: 'GEETQAR',
   category: 'music',
-  keywords: ['GEETQAR', 'Geetqar', 'Hinglish R&B', 'independent artist', 'songwriter', 'music producer', 'mix and master', 'covers', 'mixtape', 'lo-fi', 'drill', 'soul'],
-  alternates: { canonical: siteUrl },
+  keywords: ['GEETQAR', 'Geetqar', 'गीतकार', 'Geetqar songs', 'Geetqar lyrics', 'Hindi R&B', 'lo-fi', 'drill', 'soul', 'independent artist', 'songwriter', 'music producer', 'mix and master', 'covers', 'mixtape'],
+  alternates: { canonical: '/' },
   icons: { icon, shortcut: icon, apple: icon },
-  openGraph: { title, description, url: siteUrl, siteName: 'GEETQAR', type: 'website', locale: 'en_IN' },
+  openGraph: { title, description, url: '/', siteName: 'GEETQAR', type: 'website', locale: 'en_IN' },
   twitter: { card: 'summary_large_image', title, description },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 } },
 }
@@ -32,10 +33,10 @@ const structuredData = {
       '@type': 'MusicGroup',
       '@id': `${siteUrl}/#artist`,
       name: 'GEETQAR',
-      alternateName: 'गीतकार',
+      alternateName: ['गीतकार', 'Geetqar'],
       url: siteUrl,
-      genre: ['R&B', 'Soul', 'Drill', 'Lo-fi', 'Hindi'],
-      sameAs: ['https://www.instagram.com/geetqar/', 'https://www.youtube.com/@geetqar'],
+      genre: ['R&B', 'Soul', 'Drill', 'Lo-fi', 'Classical', 'Hindi'],
+      sameAs: [SOCIAL.instagram, SOCIAL.youtube],
     },
     { '@type': 'WebSite', '@id': `${siteUrl}/#website`, name: 'GEETQAR', url: siteUrl, description, publisher: { '@id': `${siteUrl}/#artist` }, inLanguage: ['en', 'hi'] },
   ],

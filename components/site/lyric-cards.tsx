@@ -7,7 +7,7 @@ import type { Track } from '@/lib/site'
 
 type Format = 'post' | 'story'
 const SIZES: Record<Format, [number, number]> = { post: [1080, 1350], story: [1080, 1920] }
-const FALLBACK_LINE = 'Raat ke gaane, jo tum chaudah baar replay karo.'
+const FALLBACK_LINE = 'Type your own line below'
 const MAX_PICKED = 4
 
 function slug(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'geetqar' }
@@ -161,8 +161,8 @@ export function LyricCards({ tracks }: { tracks: Track[] }) {
     <section id="cards" className="gx-section gx-cards" aria-labelledby="cards-title" style={{ background: 'var(--ink-2)' }}>
       <div className="gx-wrap">
         <p className="gx-kicker">02 / Lyric cards</p>
-        <h2 id="cards-title" className="gx-h2">Make it yours. <em>Post it.</em></h2>
-        <p className="gx-lede">Pick a track, tap the lines that hit, and get a poster for your story. It is made on your phone, nothing is uploaded, and it works with every new song automatically.</p>
+        <h2 id="cards-title" className="gx-h2">Turn a lyric <em>into a poster.</em></h2>
+        <p className="gx-lede">Pick a track, choose the lines you like, and save a poster for your story or feed. It is made on your device and nothing is uploaded. New songs are added automatically.</p>
 
         <div className="gx-studio">
           <div className="gx-studio-preview">

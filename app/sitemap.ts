@@ -1,21 +1,20 @@
 import type { MetadataRoute } from 'next'
+import { getCatalog } from '@/lib/catalog'
+import { SITE_URL } from '@/lib/site'
 
-const base = 'https://geetqar.vercel.app'
-
-type Song = { slug: string }
+export const revalidate = 3600
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let songs: Song[] = []
-  try {
-    const response = await fetch(`${base}/api/songs`, { next: { revalidate: 300 } })
-    if (response.ok) songs = (await response.json()).songs || []
-  } catch {}
-
-  const now = new Date()
+  const tracks = await getCatalog()
+  const latest = tracks.map((t) => t.published).filter(Boolean).sort().pop()
   return [
-    { url: base, lastModified: now, changeFrequency: 'weekly', priority: 1 },
-    { url: `${base}/music`, lastModified: now, changeFrequency: 'weekly', priority: .95 },
-    { url: `${base}/archive`, lastModified: now, changeFrequency: 'weekly', priority: .6 },
-    ...songs.map((song) => ({ url: `${base}/world/${song.slug}`, lastModified: now, changeFrequency: 'monthly' as const, priority: .9 })),
+    { url: SITE_URL, lastModified: latest ? new Date(latest) : new Date(), changeFrequency: 'weekly', priority: 1 },
+    { url: `${SITE_URL}/about`, changeFrequency: 'monthly', priority: 0.7 },
+    ...tracks.map((track) => ({
+      url: `${SITE_URL}/songs/${track.slug}`,
+      lastModified: track.published ? new Date(track.published) : undefined,
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
+    })),
   ]
 }

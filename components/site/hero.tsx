@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { Play, Youtube } from 'lucide-react'
 import { SOCIAL, type Track } from '@/lib/site'
 
-const ROLES = ['LIKHTA HU', 'GAATA HU', 'BANATA HU', 'MIX + MASTER']
+const ROLES = ['SONGWRITER', 'VOCALIST', 'PRODUCER', 'MIX + MASTER']
 
 export function Hero({ latest }: { latest?: Track }) {
   return (
@@ -14,7 +14,7 @@ export function Hero({ latest }: { latest?: Track }) {
           <div className="gx-roles" aria-label="What GEETQAR does">{ROLES.map((role) => <span key={role}>{role}</span>)}</div>
           <h1 id="hero-title" className="gx-word">GEET<em>qar</em></h1>
           <p className="gx-deva" lang="hi">गीतकार</p>
-          <p className="gx-tag">Hinglish R&amp;B, soul, drill and lo-fi, written, sung, produced and mastered by one person. Raat ke gaane, the kind you replay fourteen times.</p>
+          <p className="gx-tag">R&amp;B, soul, drill, lo-fi and classical, in Hindi and English. Written, sung, produced and mastered by one artist. New songs appear here as soon as they go live on YouTube.</p>
           <div className="gx-cta-row">
             <a className="gx-btn gx-btn-solid" href="#music"><Play size={14} fill="currentColor" /> LISTEN NOW</a>
             <a className="gx-btn gx-btn-line" href={SOCIAL.youtube} target="_blank" rel="noreferrer"><Youtube size={15} /> YOUTUBE CHANNEL</a>
@@ -36,7 +36,7 @@ export function Hero({ latest }: { latest?: Track }) {
   )
 }
 
-const WORDS = ['Songwriter', 'Vocals', 'Producer', 'Mix & Master', 'Covers', 'Mixtapes', 'R&B', 'Soul', 'Drill', 'Lo-fi', 'Classical', 'Slow & sensual']
+const WORDS = ['Songwriter', 'Vocals', 'Producer', 'Mix & Master', 'Covers', 'Mixtapes', 'R&B', 'Soul', 'Drill', 'Lo-fi', 'Classical', 'Sensual']
 
 export function Marquee() {
   const row = [...WORDS, ...WORDS]

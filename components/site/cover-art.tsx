@@ -63,7 +63,7 @@ function load(src: string, cors: boolean) {
 }
 
 async function getThumb(id: string) {
-  for (const quality of ['maxresdefault', 'sddefault', 'hqdefault']) {
+  for (const quality of ['sddefault', 'hqdefault']) {
     const src = `https://i.ytimg.com/vi/${id}/${quality}.jpg`
     for (const cors of [true, false]) {
       const img = await load(src, cors)

@@ -149,11 +149,14 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
     const to = (pct / 100) * duration; p.seekTo(to, true); setTime(to)
   }
 
-  // warm the iframe shortly after load so the first tap can play immediately (needed on iOS)
+  // Load the YouTube player on the visitor's first interaction (not on page load), so the page stays fast
+  // but the first tap on Play still works immediately (needed on iOS).
   useEffect(() => {
     if (!tracks.length) return
-    const t = window.setTimeout(() => { void initPlayer() }, 1500)
-    return () => window.clearTimeout(t)
+    const events = ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const
+    const go = () => { events.forEach((e) => window.removeEventListener(e, go)); void initPlayer() }
+    events.forEach((e) => window.addEventListener(e, go, { passive: true, once: true }))
+    return () => events.forEach((e) => window.removeEventListener(e, go))
   }, [tracks.length, initPlayer])
 
   // progress polling
@@ -257,8 +260,8 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
         <div className="gx-wrap" style={{ position: 'relative' }}>
           <div className="gx-head">
             <p className="gx-kicker">01 / Music</p>
-            <h2 id="music-title" className="gx-h2">Pick one. <em>Run it back.</em></h2>
-            <p className="gx-lede">Straight from the GEETQAR YouTube channel. Every new upload shows up here by itself, with its own generated artwork.</p>
+            <h2 id="music-title" className="gx-h2">Listen <em>here.</em></h2>
+            <p className="gx-lede">Straight from the GEETQAR YouTube channel. New uploads show up here automatically, each with its own generated artwork.</p>
           </div>
 
           {loading && !tracks.length ? (

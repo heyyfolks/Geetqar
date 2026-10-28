@@ -6,6 +6,7 @@ import { Hero, Marquee } from '@/components/site/hero'
 import { MusicExperience } from '@/components/site/music-experience'
 import { LyricCards } from '@/components/site/lyric-cards'
 import { Craft, Work } from '@/components/site/craft'
+import { SongIndex } from '@/components/site/song-index'
 import { SiteFooter } from '@/components/site/footer'
 import type { Track } from '@/lib/site'
 
@@ -38,6 +39,7 @@ export function HomeClient({ initialTracks }: { initialTracks: Track[] }) {
       <LyricCards tracks={tracks} />
       <Craft />
       <Work />
+      <SongIndex tracks={tracks} />
       <SiteFooter />
     </main>
   )
