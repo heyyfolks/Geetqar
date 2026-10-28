@@ -96,21 +96,32 @@ export async function resolveChannelId(): Promise<string | null> {
   }
 }
 
+/** Last feed attempts, shown by /api/catalog to make failures easy to diagnose. */
+export const diag: string[] = []
+
 export async function getCatalog(): Promise<Track[]> {
   try {
     const channelId = await resolveChannelId()
     if (!channelId) return []
     let xml = ''
-    for (let attempt = 0; attempt < 3 && !xml.includes('<entry>'); attempt++) {
-      if (attempt) await new Promise((resolve) => setTimeout(resolve, 800 * attempt))
+    diag.length = 0
+    const BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+    // the channel feed first, then the same uploads as a playlist feed (a different endpoint), each with two user agents
+    const sources = [
+      [`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, UA],
+      [`https://www.youtube.com/feeds/videos.xml?playlist_id=${channelId.replace(/^UC/, 'UU')}`, UA],
+      [`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, BROWSER],
+      [`https://www.youtube.com/feeds/videos.xml?playlist_id=${channelId.replace(/^UC/, 'UU')}`, BROWSER],
+    ]
+    for (const [url, agent] of sources) {
+      if (xml.includes('<entry>')) break
       try {
-        const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
-          headers: { 'User-Agent': UA },
-          next: { revalidate: 300 },
-          signal: AbortSignal.timeout(8000),
-        })
+        const response = await fetch(url, { headers: { 'User-Agent': agent, 'Accept-Language': 'en' }, next: { revalidate: 300 }, signal: AbortSignal.timeout(8000) })
+        diag.push(`${response.status} ${url.includes('playlist') ? 'playlist' : 'channel'}`)
         if (response.ok) xml = await response.text()
-      } catch {}
+      } catch (error) {
+        diag.push(`error ${error instanceof Error ? error.message : 'unknown'}`)
+      }
     }
     if (!xml.includes('<entry>')) return []
     const tracks = xml
