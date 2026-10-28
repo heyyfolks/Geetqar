@@ -96,52 +96,113 @@ export async function resolveChannelId(): Promise<string | null> {
   }
 }
 
-/** Last feed attempts, shown by /api/catalog to make failures easy to diagnose. */
+/** Last attempts to reach YouTube, shown by /api/catalog to make failures easy to diagnose. */
 export const diag: string[] = []
+
+type Raw = { id: string; title: string; description: string; published: string; views: number }
+
+const BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+
+async function get(url: string, label: string, agent = UA): Promise<string | null> {
+  try {
+    const response = await fetch(url, { headers: { 'User-Agent': agent, 'Accept-Language': 'en', Cookie: 'CONSENT=YES+1; SOCS=CAI' }, next: { revalidate: 300 }, signal: AbortSignal.timeout(9000) })
+    diag.push(`${response.status} ${label}`)
+    return response.ok ? await response.text() : null
+  } catch (error) {
+    diag.push(`error ${label}: ${error instanceof Error ? error.message : 'unknown'}`)
+    return null
+  }
+}
+
+/** 1. Official Data API (set YOUTUBE_API_KEY in Vercel: free, 10,000 requests a day). Most reliable. */
+async function fromApi(channelId: string): Promise<Raw[]> {
+  const key = process.env.YOUTUBE_API_KEY
+  if (!key) return []
+  const list = await get(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${channelId.replace(/^UC/, 'UU')}&key=${key}`, 'api')
+  if (!list) return []
+  try {
+    const items = (JSON.parse(list).items || []) as { snippet: { title: string; description: string; publishedAt: string; resourceId: { videoId: string } } }[]
+    const ids = items.map((item) => item.snippet.resourceId.videoId)
+    const stats = await get(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids.join(',')}&key=${key}`, 'api-stats')
+    const views = new Map<string, number>()
+    if (stats) for (const v of JSON.parse(stats).items || []) views.set(v.id, Number(v.statistics?.viewCount || 0))
+    return items
+      .filter((item) => item.snippet.title !== 'Private video' && item.snippet.title !== 'Deleted video')
+      .map((item) => ({ id: item.snippet.resourceId.videoId, title: item.snippet.title, description: item.snippet.description || '', published: (item.snippet.publishedAt || '').slice(0, 10), views: views.get(item.snippet.resourceId.videoId) || 0 }))
+  } catch {
+    return []
+  }
+}
+
+/** 2. The channel RSS feed. */
+async function fromFeed(channelId: string): Promise<Raw[]> {
+  for (const [url, label, agent] of [
+    [`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, 'feed', UA],
+    [`https://www.youtube.com/feeds/videos.xml?playlist_id=${channelId.replace(/^UC/, 'UU')}`, 'feed-playlist', BROWSER],
+  ]) {
+    const xml = await get(url, label, agent)
+    if (!xml || !xml.includes('<entry>')) continue
+    return xml.split('<entry>').slice(1).flatMap((entry): Raw[] => {
+      const id = entry.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)?.[1]
+      const title = decode(entry.match(/<title>([^<]+)<\/title>/)?.[1] || '')
+      if (!id || !title) return []
+      return [{
+        id,
+        title,
+        description: decode(entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || ''),
+        published: entry.match(/<published>([^<]+)<\/published>/)?.[1]?.slice(0, 10) || '',
+        views: Number(entry.match(/<media:statistics views="(\d+)"/)?.[1] || 0),
+      }]
+    })
+  }
+  return []
+}
+
+/** 3. Last resort: read the public channel page. It has titles, ids and view counts but no descriptions or exact dates. */
+async function fromChannelPage(): Promise<Raw[]> {
+  const html = await get(`https://www.youtube.com/@${HANDLE}/videos`, 'channel-page', BROWSER)
+  const json = html?.match(/ytInitialData\s*=\s*(\{[\s\S]*?\});\s*<\/script>/)?.[1]
+  if (!json) return []
+  const out: Raw[] = []
+  const seen = new Set<string>()
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== 'object') return
+    if (Array.isArray(node)) return node.forEach(walk)
+    const n = node as Record<string, any>
+    const id = n.videoId
+    const title = n.title?.runs?.[0]?.text || n.title?.simpleText
+    if (typeof id === 'string' && /^[\w-]{11}$/.test(id) && typeof title === 'string' && !seen.has(id)) {
+      seen.add(id)
+      const views = Number(String(n.viewCountText?.simpleText || '').replace(/[^\d]/g, '')) || 0
+      out.push({ id, title, description: '', published: '', views })
+    }
+    Object.values(n).forEach(walk)
+  }
+  try { walk(JSON.parse(json)) } catch {}
+  return out
+}
 
 export async function getCatalog(): Promise<Track[]> {
   try {
     const channelId = await resolveChannelId()
     if (!channelId) return []
-    let xml = ''
     diag.length = 0
-    const BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
-    // the channel feed first, then the same uploads as a playlist feed (a different endpoint), each with two user agents
-    const sources = [
-      [`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, UA],
-      [`https://www.youtube.com/feeds/videos.xml?playlist_id=${channelId.replace(/^UC/, 'UU')}`, UA],
-      [`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, BROWSER],
-      [`https://www.youtube.com/feeds/videos.xml?playlist_id=${channelId.replace(/^UC/, 'UU')}`, BROWSER],
-    ]
-    for (const [url, agent] of sources) {
-      if (xml.includes('<entry>')) break
-      try {
-        const response = await fetch(url, { headers: { 'User-Agent': agent, 'Accept-Language': 'en' }, next: { revalidate: 300 }, signal: AbortSignal.timeout(8000) })
-        diag.push(`${response.status} ${url.includes('playlist') ? 'playlist' : 'channel'}`)
-        if (response.ok) xml = await response.text()
-      } catch (error) {
-        diag.push(`error ${error instanceof Error ? error.message : 'unknown'}`)
-      }
-    }
-    if (!xml.includes('<entry>')) return []
-    const tracks = xml
-      .split('<entry>')
-      .slice(1)
-      .map((entry): Track | null => {
-        const id = entry.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)?.[1]
-        const title = decode(entry.match(/<title>([^<]+)<\/title>/)?.[1] || '')
-        if (!id || !title) return null
-        const rawDescription = entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] || ''
-        const kind = kindOf(title, decode(rawDescription))
+    let raws = await fromApi(channelId)
+    if (!raws.length) raws = await fromFeed(channelId)
+    if (!raws.length) raws = await fromChannelPage()
+    const tracks = raws
+      .map((raw): Track | null => {
+        const { id, title, description: rawDescription } = raw
         if (HIDDEN_IDS.includes(id) || HIDDEN_TITLES.some((pattern) => pattern.test(title))) return null
+        const kind = kindOf(title, rawDescription)
         return {
           id,
           slug: '',
           title,
           name: cleanTitle(title),
           kind,
-          published: entry.match(/<published>([^<]+)<\/published>/)?.[1]?.slice(0, 10) || '',
-          views: Number(entry.match(/<media:statistics views="(\d+)"/)?.[1] || 0),
+          published: raw.published,
+          views: raw.views,
           description: cleanDescription(rawDescription),
           // only the artist's own songs: covers and mashups are other people's lyrics
           lyrics: kind === 'Cover' || kind === 'Mashup' ? [] : parseLyrics(rawDescription),
