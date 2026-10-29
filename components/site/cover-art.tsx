@@ -20,6 +20,8 @@ type Props = {
   size?: number
   /** draw GEETQAR / kind / title typography */
   label?: boolean
+  /** artwork style override; 0 or undefined = chosen from the title */
+  variant?: number
   onPalette?: (palette: [string, string]) => void
 }
 
@@ -263,7 +265,7 @@ export async function paintCover(canvas: HTMLCanvasElement, opts: PaintOptions, 
       return [p1, p2]
 }
 
-export function CoverArt({ id, name, kind, year, size = 640, label = true, onPalette }: Props) {
+export function CoverArt({ id, name, kind, year, size = 640, label = true, variant = 0, onPalette }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
   const paletteRef = useRef(onPalette)
   useEffect(() => { paletteRef.current = onPalette }, [onPalette])
@@ -272,11 +274,11 @@ export function CoverArt({ id, name, kind, year, size = 640, label = true, onPal
     let cancelled = false
     const canvas = ref.current
     if (!canvas) return
-    paintCover(canvas, { id, name, kind, year, size, label }, () => cancelled).then((palette) => {
+    paintCover(canvas, { id, name, kind, year, size, label, variant }, () => cancelled).then((palette) => {
       if (palette && !cancelled) paletteRef.current?.(palette)
     })
     return () => { cancelled = true }
-  }, [id, name, kind, year, size, label])
+  }, [id, name, kind, year, size, label, variant])
 
   return <canvas ref={ref} role="img" aria-label={`${name} cover art`} style={{ display: 'block', width: '100%', height: '100%' }} />
 }

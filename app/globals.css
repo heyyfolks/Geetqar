@@ -25,7 +25,7 @@
 html { overflow-x: clip; scroll-behavior: smooth; background: var(--ink); scroll-padding-top: 84px; }
 body {
   margin: 0;
-  background: var(--ink);
+  background: transparent; /* the page colour lives on html so the ambience layer can sit behind the content */
   color: var(--cream);
   font-family: var(--f-sans);
   text-rendering: optimizeLegibility;
@@ -405,3 +405,30 @@ button.gx-btn-line { border: 1px solid rgba(244, 236, 225, .28); color: var(--cr
 .gx-share .gx-chip { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .gx-mood-stage > * { min-width: 0; }
 .gx-moods .gx-aura { opacity: .85; }
+
+/* ---------- site-wide ambience ---------- */
+@property --ember { syntax: '<color>'; inherits: true; initial-value: #ff6a3d; }
+@property --ember-soft { syntax: '<color>'; inherits: true; initial-value: #ff9066; }
+@property --wine { syntax: '<color>'; inherits: true; initial-value: #8a2146; }
+@property --amb1 { syntax: '<color>'; inherits: true; initial-value: #ff6a3d; }
+@property --amb2 { syntax: '<color>'; inherits: true; initial-value: #8a2146; }
+:root { transition: --ember 1s ease, --ember-soft 1s ease, --wine 1s ease, --amb1 1s ease, --amb2 1s ease; }
+.gx-amb-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(70% 55% at 85% 8%, color-mix(in srgb, var(--amb1) 22%, transparent), transparent 70%), radial-gradient(60% 60% at 8% 92%, color-mix(in srgb, var(--amb2) 55%, transparent), transparent 70%); }
+.gx-amb-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 30; pointer-events: none; animation: gx-fade 1.2s ease both; }
+@keyframes gx-fade { from { opacity: 0; } to { opacity: 1; } }
+.gx-amb-pill { position: fixed; left: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 65; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.has-dock .gx-amb-pill { bottom: calc(92px + env(safe-area-inset-bottom)); }
+.gx-amb-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 99px; border: 1px solid var(--line); background: rgba(14, 8, 11, .82); backdrop-filter: blur(14px); color: var(--cream); font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+.gx-amb-btn svg { color: var(--ember); }
+.gx-amb-btn:hover { border-color: var(--ember); }
+.gx-amb-panel { min-width: 230px; padding: 14px; border-radius: 18px; border: 1px solid var(--line); background: rgba(14, 8, 11, .94); backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0, 0, 0, .55); animation: gx-rise .25s ease both; }
+.gx-amb-title { margin: 0 0 8px; font-family: var(--f-mono); font-size: 10px; letter-spacing: .24em; color: var(--faint); }
+.gx-amb-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.gx-amb-panel li button { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; cursor: pointer; font-size: 14px; color: var(--muted); }
+.gx-amb-panel li button:hover, .gx-amb-panel li button.on { background: rgba(244, 236, 225, .08); color: var(--cream); }
+.gx-amb-panel i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.gx-amb-row { display: flex; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.gx-amb-row button { flex: 1; display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 9px 8px; border-radius: 10px; border: 1px solid var(--line); background: none; color: var(--cream); font-size: 12px; cursor: pointer; }
+.gx-amb-row button:disabled { opacity: .4; cursor: default; }
+@media (max-width: 640px) { .gx-amb-btn span { display: none; } .gx-amb-btn { padding: 11px; } }
+@media (prefers-reduced-motion: reduce) { .gx-amb-canvas { animation: none; } }

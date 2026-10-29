@@ -1,49 +1,52 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import { GlobalAudioDock } from '@/components/global-audio-dock'
-import { SITE_URL, SOCIAL } from '@/lib/site'
+import { getConfig } from '@/lib/config'
+import { SITE_URL } from '@/lib/site'
 
 const icon = '/icon.svg?v=7'
 const siteUrl = SITE_URL
-const title = 'GEETQAR (गीतकार) | Official Site: Songs, Lyrics & Videos'
-const description = 'Official website of GEETQAR (गीतकार), an independent artist who writes, sings, produces, mixes and masters his own R&B, soul, drill, lo-fi and classical music. Listen, watch videos and read lyrics.'
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: { default: title, template: '%s | GEETQAR' },
-  description,
-  applicationName: 'GEETQAR',
-  authors: [{ name: 'GEETQAR', url: siteUrl }],
-  creator: 'GEETQAR',
-  category: 'music',
-  keywords: ['GEETQAR', 'Geetqar', 'गीतकार', 'Geetqar songs', 'Geetqar lyrics', 'Hindi R&B', 'lo-fi', 'drill', 'soul', 'independent artist', 'songwriter', 'music producer', 'mix and master', 'covers', 'mixtape'],
-  alternates: { canonical: '/' },
-  icons: { icon, shortcut: icon, apple: icon },
-  openGraph: { title, description, url: '/', siteName: 'GEETQAR', type: 'website', locale: 'en_IN' },
-  twitter: { card: 'summary_large_image', title, description },
-  verification: { google: process.env.GOOGLE_SITE_VERIFICATION || undefined, other: process.env.BING_SITE_VERIFICATION ? { 'msvalidate.01': process.env.BING_SITE_VERIFICATION } : undefined },
-  robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 } },
+export async function generateMetadata(): Promise<Metadata> {
+  const { seo } = await getConfig()
+  const keywords = seo.keywords.split(',').map((k) => k.trim()).filter(Boolean)
+  return {
+    metadataBase: new URL(siteUrl),
+    title: { default: seo.title, template: '%s | GEETQAR' },
+    description: seo.description,
+    applicationName: 'GEETQAR',
+    authors: [{ name: 'GEETQAR', url: siteUrl }],
+    creator: 'GEETQAR',
+    category: 'music',
+    keywords,
+    alternates: { canonical: '/' },
+    icons: { icon, shortcut: icon, apple: icon },
+    openGraph: { title: seo.title, description: seo.description, url: '/', siteName: 'GEETQAR', type: 'website', locale: 'en_IN' },
+    twitter: { card: 'summary_large_image', title: seo.title, description: seo.description },
+    verification: { google: process.env.GOOGLE_SITE_VERIFICATION || undefined, other: process.env.BING_SITE_VERIFICATION ? { 'msvalidate.01': process.env.BING_SITE_VERIFICATION } : undefined },
+    robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 } },
+  }
 }
 
 export const viewport: Viewport = { themeColor: '#0b0709', colorScheme: 'dark' }
 
-const structuredData = {
-  '@context': 'https://schema.org',
-  '@graph': [
-    {
-      '@type': 'MusicGroup',
-      '@id': `${siteUrl}/#artist`,
-      name: 'GEETQAR',
-      alternateName: ['गीतकार', 'Geetqar'],
-      url: siteUrl,
-      genre: ['R&B', 'Soul', 'Drill', 'Lo-fi', 'Classical', 'Hindi'],
-      sameAs: [SOCIAL.instagram, SOCIAL.youtube],
-    },
-    { '@type': 'WebSite', '@id': `${siteUrl}/#website`, name: 'GEETQAR', url: siteUrl, description, publisher: { '@id': `${siteUrl}/#artist` }, inLanguage: ['en', 'hi'] },
-  ],
-}
-
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const { links, seo } = await getConfig()
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'MusicGroup',
+        '@id': `${siteUrl}/#artist`,
+        name: 'GEETQAR',
+        alternateName: ['गीतकार', 'Geetqar'],
+        url: siteUrl,
+        genre: ['R&B', 'Soul', 'Drill', 'Lo-fi', 'Classical', 'Hindi'],
+        sameAs: [links.instagram, links.youtube, links.spotify, links.apple, links.unitedmasters].filter(Boolean),
+      },
+      { '@type': 'WebSite', '@id': `${siteUrl}/#website`, name: 'GEETQAR', url: siteUrl, description: seo.description, publisher: { '@id': `${siteUrl}/#artist` }, inLanguage: ['en', 'hi'] },
+    ],
+  }
   return (
     <html lang="en">
       <head>

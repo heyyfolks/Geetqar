@@ -10,9 +10,12 @@ import { Craft, Work } from '@/components/site/craft'
 import { FollowStrip } from '@/components/site/follow-strip'
 import { SongIndex } from '@/components/site/song-index'
 import { SiteFooter } from '@/components/site/footer'
+import { SiteProvider } from '@/components/site/site-context'
+import { AmbienceProvider } from '@/components/site/ambience'
+import { navItems, type SiteConfig } from '@/lib/site-config'
 import type { Track } from '@/lib/site'
 
-export function HomeClient({ initialTracks }: { initialTracks: Track[] }) {
+export function HomeClient({ initialTracks, config }: { initialTracks: Track[]; config: SiteConfig }) {
   const [tracks, setTracks] = useState<Track[]>(initialTracks)
   const [loading, setLoading] = useState(initialTracks.length === 0)
 
@@ -22,7 +25,7 @@ export function HomeClient({ initialTracks }: { initialTracks: Track[] }) {
     const refresh = () =>
       fetch('/api/catalog')
         .then((response) => (response.ok ? response.json() : null))
-        .then((data) => { if (alive && Array.isArray(data?.tracks) && data.tracks.length) setTracks(data.tracks) })
+        .then((data) => { if (alive && Array.isArray(data?.tracks) && data.tracks.length) setTracks(data.tracks.map((t: Track) => ({ ...t, moods: Array.isArray(t.moods) ? t.moods : [], lyrics: Array.isArray(t.lyrics) ? t.lyrics : [] }))) })
         .catch(() => {})
         .finally(() => { if (alive) setLoading(false) })
     void refresh()
@@ -32,19 +35,24 @@ export function HomeClient({ initialTracks }: { initialTracks: Track[] }) {
     return () => { alive = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
   }, [])
 
+  const s = config.sections
   return (
-    <main>
-      <SiteNav />
-      <Hero latest={tracks[0]} />
-      <Marquee />
-      <MusicExperience tracks={tracks} loading={loading} />
-      <MoodRoom tracks={tracks} />
-      <LyricCards tracks={tracks} />
-      <Craft />
-      <Work />
-      <FollowStrip latest={tracks[0]} />
-      <SongIndex tracks={tracks} />
-      <SiteFooter />
-    </main>
+    <SiteProvider config={config}>
+      <AmbienceProvider moods={config.moods} defaultEnabled={config.ambience.enabled} tracks={tracks}>
+        <main>
+          <SiteNav />
+          <Hero latest={tracks[0]} />
+          <Marquee />
+          <MusicExperience tracks={tracks} loading={loading} />
+          {s.moods && <MoodRoom tracks={tracks} />}
+          {s.cards && <LyricCards tracks={tracks} />}
+          {s.craft && <Craft />}
+          {s.work && <Work />}
+          {s.follow && <FollowStrip latest={tracks[0]} links={config.links} />}
+          {s.songs && <SongIndex tracks={tracks} />}
+          <SiteFooter links={config.links} items={navItems(s)} />
+        </main>
+      </AmbienceProvider>
+    </SiteProvider>
   )
 }

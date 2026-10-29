@@ -8,6 +8,7 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://geetqar.ve
 /** IndexNow key (public by design): the same text must exist at /<key>.txt. */
 export const INDEXNOW_KEY = '785bcc6f7666f2179ab410a117577a08'
 
+/** Default hide rule: uploads titled only with a date (e.g. "July 24, 2024") are hidden unless the artist un-hides them in the admin panel. */
 export const HIDDEN_TITLES: RegExp[] = [/^\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}\s*$/i, /black\s*suit/i]
 
 export const SOCIAL = {
@@ -41,6 +42,18 @@ export type Track = {
   published: string
   views: number
   description: string
-  /** lyric lines parsed from the video description, if the artist pasted them there */
+  /** lyric lines for the lyric cards: from the admin panel, or parsed from the video description */
   lyrics: string[]
+  /** full lyrics text with stanza breaks, for the song page */
+  lyricsText?: string
+  /** mood keys, set in the admin panel or guessed from the title */
+  moods: string[]
+  pinned?: boolean
+  credits?: string
+  links?: { spotify?: string; apple?: string; other?: string }
+  /** artwork style override (index), if the artist picked one */
+  artStyle?: number
 }
+
+/** Public wording for a track kind: "Single" is shown as "Original". */
+export const kindLabel = (kind: string): string => (kind === 'Single' ? 'Original' : kind)

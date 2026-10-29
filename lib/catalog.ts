@@ -1,3 +1,9 @@
+import { cache } from 'react'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { adminDb } from './db'
+import { getConfig } from './config'
+import { autoMoods } from './moods'
+import { getOverrides, lyricLines, type Override } from './overrides'
 import { HIDDEN_TITLES, SITE_URL, type Track, type TrackKind } from './site'
 
 /**
@@ -103,9 +109,11 @@ type Raw = { id: string; title: string; description: string; published: string; 
 
 const BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
 
+let freshSync = false
+
 async function get(url: string, label: string, agent = UA): Promise<string | null> {
   try {
-    const response = await fetch(url, { headers: { 'User-Agent': agent, 'Accept-Language': 'en', Cookie: 'CONSENT=YES+1; SOCS=CAI' }, next: { revalidate: 300 }, signal: AbortSignal.timeout(9000) })
+    const response = await fetch(url, { headers: { 'User-Agent': agent, 'Accept-Language': 'en', Cookie: 'CONSENT=YES+1; SOCS=CAI' }, ...(freshSync ? { cache: 'no-store' as const } : { next: { revalidate: 300 } }), signal: AbortSignal.timeout(9000) })
     diag.push(`${response.status} ${label}`)
     return response.ok ? await response.text() : null
   } catch (error) {
@@ -189,42 +197,157 @@ async function fromChannelPage(): Promise<Raw[]> {
   return out
 }
 
-export async function getCatalog(): Promise<Track[]> {
+export type SyncInfo = { source: 'api' | 'feed' | 'page' | 'none'; liveCount: number; savedCount: number; manualCount: number; hasApiKey: boolean; feed: string[]; at: string }
+
+/** Reads YouTube: the Data API (if a key is set), then the RSS feed, then the public channel page. */
+async function fetchLive(channelId: string): Promise<{ raws: Raw[]; source: SyncInfo['source'] }> {
+  diag.length = 0
+  let raws = await fromApi(channelId)
+  if (raws.length) return { raws, source: 'api' }
+  raws = await fromFeed(channelId)
+  if (raws.length) return { raws, source: 'feed' }
+  raws = await fromChannelPage()
+  return { raws, source: raws.length ? 'page' : 'none' }
+}
+
+/** The last good copy of the channel, so a song never disappears because YouTube blocked one request. */
+async function loadSnapshot(db: SupabaseClient | null): Promise<Raw[]> {
+  if (!db) return []
+  try {
+    const { data } = await db.from('site_config').select('value').eq('key', 'catalog_snapshot').maybeSingle()
+    const raws = (data?.value as { raws?: Raw[] } | undefined)?.raws
+    return Array.isArray(raws) ? raws.filter((r) => r && typeof r.id === 'string' && typeof r.title === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+async function saveSnapshot(db: SupabaseClient | null, raws: Raw[], previous: Raw[]) {
+  if (!db) return
+  const sig = (list: Raw[]) => list.map((r) => `${r.id}|${r.title}|${r.description.length}|${r.published}`).join('\n')
+  if (sig(raws) === sig(previous)) return
+  try { await db.from('site_config').upsert({ key: 'catalog_snapshot', value: { raws: raws.slice(0, 120) }, updated_at: new Date().toISOString() }) } catch {}
+}
+
+export type AdminEntry = {
+  track: Track
+  hidden: boolean
+  origin: 'youtube' | 'saved' | 'manual'
+  isNew: boolean
+  override: Override | null
+  auto: { name: string; kind: TrackKind; moods: string[]; published: string; lyricsCount: number; description: string }
+}
+
+const defaultHidden = (title: string) => HIDDEN_TITLES.some((pattern) => pattern.test(title))
+
+function slugBase(title: string, id: string) {
+  return slugify(cleanTitle(title)) || id.toLowerCase()
+}
+
+async function makeEntries(fresh: boolean): Promise<{ entries: AdminEntry[]; sync: SyncInfo }> {
+  freshSync = fresh
+  const db = adminDb(!fresh)
+  const [config, overrides] = await Promise.all([getConfig(fresh), getOverrides(fresh)])
+  const validMoods = config.moods.map((m) => m.key)
+
+  let live: Raw[] = []
+  let source: SyncInfo['source'] = 'none'
   try {
     const channelId = await resolveChannelId()
-    if (!channelId) return []
-    diag.length = 0
-    let raws = await fromApi(channelId)
-    if (!raws.length) raws = await fromFeed(channelId)
-    if (!raws.length) raws = await fromChannelPage()
-    const tracks = raws
-      .map((raw): Track | null => {
-        const { id, title, description: rawDescription } = raw
-        if (HIDDEN_IDS.includes(id) || HIDDEN_TITLES.some((pattern) => pattern.test(title))) return null
-        const kind = kindOf(title, rawDescription)
-        return {
-          id,
-          slug: '',
-          title,
-          name: cleanTitle(title),
-          kind,
-          published: raw.published,
-          views: raw.views,
-          description: cleanDescription(rawDescription),
-          // only the artist's own songs: covers and mashups are other people's lyrics
-          lyrics: kind === 'Cover' || kind === 'Mashup' ? [] : parseLyrics(rawDescription),
-        }
-      })
-      .filter((track): track is Track => track !== null)
-    // unique, readable slugs; the video id is the fallback (e.g. all-Devanagari titles) and the tie-breaker
-    const used = new Set<string>()
-    for (const track of tracks) {
-      let slug = slugify(cleanTitle(track.title)) || track.id.toLowerCase()
-      if (used.has(slug)) slug = `${slug}-${track.id.toLowerCase().slice(0, 5)}`
-      used.add(slug)
-      track.slug = slug
+    if (channelId) ({ raws: live, source } = await fetchLive(channelId))
+  } catch {}
+
+  const snapshot = await loadSnapshot(db)
+  const byId = new Map<string, Raw & { saved?: boolean }>()
+  for (const raw of live) byId.set(raw.id, raw)
+  for (const old of snapshot) {
+    const now = byId.get(old.id)
+    if (!now) byId.set(old.id, { ...old, saved: true })
+    else byId.set(old.id, { ...now, description: now.description || old.description, published: now.published || old.published, views: now.views || old.views })
+  }
+  if (live.length) await saveSnapshot(db, Array.from(byId.values()).map(({ id, title, description, published, views }) => ({ id, title, description, published, views })), snapshot)
+
+  // videos the artist added by hand
+  let manualCount = 0
+  for (const ov of overrides.values()) {
+    if (ov.manual && !byId.has(ov.video_id)) {
+      manualCount++
+      byId.set(ov.video_id, { id: ov.video_id, title: ov.title || ov.name || 'Untitled', description: '', published: ov.published || '', views: 0, saved: false })
     }
-    return tracks
+  }
+
+  const used = new Set<string>()
+  const entries: AdminEntry[] = []
+  for (const raw of byId.values()) {
+    const ov = overrides.get(raw.id) || null
+    const title = raw.title
+    const autoKind = kindOf(title, raw.description)
+    const autoName = cleanTitle(title)
+    const kind = ov?.kind || autoKind
+    const autoLines = autoKind === 'Cover' || autoKind === 'Mashup' ? [] : parseLyrics(raw.description)
+    const lyricsText = ov?.lyrics ? ov.lyrics : autoLines.join('\n')
+    const lines = ov?.lyrics ? lyricLines(ov.lyrics) : kind === 'Cover' || kind === 'Mashup' ? [] : autoLines
+    const published = ov?.published || raw.published
+    const track0 = { title, name: ov?.name || autoName }
+    const autoMood = autoMoods({ title, name: autoName }, validMoods)
+    const moods = ov?.moods ? ov.moods.filter((m) => validMoods.includes(m)) : autoMood
+    let slug = slugBase(title, raw.id)
+    if (used.has(slug)) slug = `${slug}-${raw.id.toLowerCase().slice(0, 5)}`
+    used.add(slug)
+    const links = ov?.links && Object.keys(ov.links).length ? ov.links : undefined
+    const track: Track = {
+      id: raw.id,
+      slug,
+      title,
+      name: track0.name,
+      kind,
+      published,
+      views: raw.views,
+      description: ov?.description ?? cleanDescription(raw.description),
+      lyrics: lines,
+      lyricsText: lyricsText || undefined,
+      moods,
+      pinned: ov?.pinned || undefined,
+      credits: ov?.credits || undefined,
+      links,
+      artStyle: ov?.art_style ?? undefined,
+    }
+    entries.push({
+      track,
+      hidden: ov?.hidden ?? defaultHidden(title),
+      origin: ov?.manual && !live.some((l) => l.id === raw.id) ? 'manual' : raw.saved ? 'saved' : 'youtube',
+      isNew: Boolean(published) && Date.now() - +new Date(published) < 14 * 864e5,
+      override: ov,
+      auto: { name: autoName, kind: autoKind, moods: autoMood, published: raw.published, lyricsCount: autoLines.length, description: cleanDescription(raw.description) },
+    })
+  }
+
+  // order: pinned (by position), then hand-ordered, then the automatic order with hand-added songs first
+  const rank = (e: AdminEntry) => (e.track.pinned ? 0 : e.override?.sort_order != null ? 1 : 2)
+  const index = new Map(entries.map((e, i) => [e.track.id, i]))
+  entries.sort((a, b) => {
+    const ra = rank(a), rb = rank(b)
+    if (ra !== rb) return ra - rb
+    if (ra < 2) return (a.override?.sort_order ?? 9999) - (b.override?.sort_order ?? 9999) || index.get(a.track.id)! - index.get(b.track.id)!
+    const ma = a.origin === 'manual' ? 0 : 1, mb = b.origin === 'manual' ? 0 : 1
+    return ma - mb || index.get(a.track.id)! - index.get(b.track.id)!
+  })
+
+  return {
+    entries,
+    sync: { source, liveCount: live.length, savedCount: entries.filter((e) => e.origin === 'saved').length, manualCount, hasApiKey: Boolean(process.env.YOUTUBE_API_KEY), feed: [...diag], at: new Date().toISOString() },
+  }
+}
+
+export const buildEntries = cache(() => makeEntries(false))
+/** For the admin panel: reads everything fresh (no caches). */
+export const buildEntriesFresh = () => makeEntries(true)
+
+/** The public catalogue: everything that is not hidden. */
+export async function getCatalog(): Promise<Track[]> {
+  try {
+    const { entries } = await buildEntries()
+    return entries.filter((e) => !e.hidden).map((e) => e.track)
   } catch {
     return []
   }

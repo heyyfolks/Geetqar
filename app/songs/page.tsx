@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { PageShell } from '@/components/site/page-shell'
 import { getCatalogForCache } from '@/lib/catalog'
-import { SITE_URL } from '@/lib/site'
+import { SITE_URL, kindLabel } from '@/lib/site'
 
 export const revalidate = 300
 
@@ -30,7 +30,7 @@ export default async function Songs() {
     <section className="gx-song-block">
       <h2 className="gx-h3">{heading}</h2>
       <ul className="gx-rel">
-        {list.map((t) => <li key={t.id}><a href={`/songs/${t.slug}`}><strong>{t.name}</strong><span>{t.kind}{t.published ? ` · ${t.published.slice(0, 4)}` : ''}</span></a></li>)}
+        {list.map((t) => <li key={t.id}><a href={`/songs/${t.slug}`}><strong>{t.name}</strong><span>{kindLabel(t.kind)}{t.published ? ` · ${t.published.slice(0, 4)}` : ''}</span></a></li>)}
       </ul>
     </section>
   )

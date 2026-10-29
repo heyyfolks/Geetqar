@@ -1,11 +1,13 @@
 'use client'
 
+import { kindLabel } from '@/lib/site'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Disc3, Film, Maximize2, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward, Volume2, VolumeX, X, Youtube } from 'lucide-react'
 import { CoverArt } from '@/components/site/cover-art'
 import { ShareButton } from '@/components/site/share-button'
-import { SOCIAL, type Track } from '@/lib/site'
+import type { Track } from '@/lib/site'
+import { useSite } from '@/components/site/site-context'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global { interface Window { YT?: any; onYouTubeIframeAPIReady?: () => void } }
@@ -36,6 +38,7 @@ type Filter = 'all' | 'originals' | 'covers'
 type MoodQueue = { label: string; ids: string[] }
 
 export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading: boolean }) {
+  const { links } = useSite()
   const [filter, setFilter] = useState<Filter>('all')
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -113,6 +116,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
   }, [])
 
   const select = useCallback((id: string, play = true) => {
+    window.dispatchEvent(new CustomEvent('gx:track', { detail: { id } }))
     setCurrentId(id); setNote(null); setTime(0); setDuration(0)
     const t = tracks.find((x) => x.id === id)
     const p = playerRef.current
@@ -250,7 +254,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
   useEffect(() => {
     if (!('mediaSession' in navigator) || !current) return
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: current.name, artist: 'GEETQAR', album: current.kind,
+      title: current.name, artist: 'GEETQAR', album: kindLabel(current.kind),
       artwork: [{ src: `https://i.ytimg.com/vi/${current.id}/hqdefault.jpg`, sizes: '480x360', type: 'image/jpeg' }],
     })
     navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'
@@ -259,6 +263,13 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
     navigator.mediaSession.setActionHandler('nexttrack', () => step(1))
     navigator.mediaSession.setActionHandler('previoustrack', prev)
   }, [current, playing, toggle, step, prev])
+
+  // let the ambience pill step above the mini player
+  const dockShown = Boolean(current) && !inView && !full
+  useEffect(() => {
+    document.body.classList.toggle('has-dock', dockShown)
+    return () => document.body.classList.remove('has-dock')
+  }, [dockShown])
 
   // 3D tilt on the cover
   const tilt = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -291,7 +302,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
           ) : !tracks.length ? (
             <div className="gx-empty">
               <p>The catalogue could not be reached just now. The full library is always on YouTube.</p>
-              <a className="gx-btn gx-btn-solid" href={SOCIAL.youtube} target="_blank" rel="noreferrer"><Youtube size={15} /> OPEN YOUTUBE</a>
+              <a className="gx-btn gx-btn-solid" href={links.youtube} target="_blank" rel="noreferrer"><Youtube size={15} /> OPEN YOUTUBE</a>
             </div>
           ) : (
             <div className="gx-deck">
@@ -302,7 +313,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
                       <AnimatePresence mode="popLayout" initial={false}>
                         {showCurrent && (
                           <motion.div key={showCurrent.id} className="gx-cover-layer" initial={{ opacity: 0, scale: 1.08, filter: 'blur(14px)' }} animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.65, ease: [0.2, 0.8, 0.2, 1] }}>
-                            <CoverArt id={showCurrent.id} name={showCurrent.name} kind={showCurrent.kind} year={showCurrent.published.slice(0, 4)} size={720} onPalette={showCurrent.id === (current?.id || tracks[0]?.id) ? setPal : undefined} />
+                            <CoverArt id={showCurrent.id} name={showCurrent.name} variant={showCurrent.artStyle} kind={showCurrent.kind} year={showCurrent.published.slice(0, 4)} size={720} onPalette={showCurrent.id === (current?.id || tracks[0]?.id) ? setPal : undefined} />
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -315,7 +326,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
                 </div>
 
                 <div className="gx-meta">
-                  <div className="gx-sub">{showCurrent ? `${showCurrent.kind} · ${fmtDate(showCurrent.published)}${showCurrent.views ? ` · ${fmtViews(showCurrent.views)} views` : ''}` : ''}{showCurrent && isNew(showCurrent.published) && <em>NEW</em>}</div>
+                  <div className="gx-sub">{showCurrent ? `${kindLabel(showCurrent.kind)} · ${fmtDate(showCurrent.published)}${showCurrent.views ? ` · ${fmtViews(showCurrent.views)} views` : ''}` : ''}{showCurrent && isNew(showCurrent.published) && <em>NEW</em>}</div>
                   <h3 className="gx-title">{showCurrent?.name}</h3>
                   <div className={`gx-bars ${playing ? 'on' : ''}`} aria-hidden="true">{Array.from({ length: 36 }).map((_, i) => <i key={i} style={{ animationDelay: `${(i * 67) % 800}ms`, animationDuration: `${0.7 + ((i * 29) % 60) / 100}s` }} />)}</div>
                   {showCurrent && <div className="gx-share"><ShareButton path={`/songs/${showCurrent.slug}`} title={`${showCurrent.name} by GEETQAR`} className="gx-chip" /> <a className="gx-chip" href={`/songs/${showCurrent.slug}`}>SONG PAGE</a></div>}
@@ -367,7 +378,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
                           <span className="gx-q-cover"><CoverArt id={t.id} name={t.name} kind={t.kind} year={t.published.slice(0, 4)} size={200} label={false} /></span>
                           <span className="gx-q-meta">
                             <strong>{t.name}</strong>
-                            <small>{t.kind} · {fmtDate(t.published)}{t.views ? ` · ${fmtViews(t.views)}` : ''}{isNew(t.published) && <em>NEW</em>}</small>
+                            <small>{kindLabel(t.kind)} · {fmtDate(t.published)}{t.views ? ` · ${fmtViews(t.views)}` : ''}{isNew(t.published) && <em>NEW</em>}</small>
                           </span>
                           <span className="gx-q-state" aria-hidden="true">
                             {active && playing ? <span className="gx-mini-eq"><i /><i /><i /></span> : <Play size={15} fill="currentColor" />}
@@ -377,7 +388,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
                     )
                   })}
                 </ol>
-                <p className="gx-sync">Synced live from <a href={SOCIAL.youtube} target="_blank" rel="noreferrer">youtube.com/@geetqar</a> · updates every few minutes</p>
+                <p className="gx-sync">Synced live from <a href={links.youtube} target="_blank" rel="noreferrer">youtube.com/@geetqar</a> · updates every few minutes</p>
               </aside>
             </div>
           )}
@@ -388,7 +399,7 @@ export function MusicExperience({ tracks, loading }: { tracks: Track[]; loading:
         <div className="gx-dock" role="region" aria-label="Mini player">
           <div className="gx-dock-progress" style={{ transform: `scaleX(${pct / 100})` }} />
           <a href="#music" className="gx-dock-cover"><img src={`https://i.ytimg.com/vi/${current.id}/default.jpg`} alt="" /></a>
-          <a href="#music" className="gx-dock-meta"><strong>{current.name}</strong><small>GEETQAR · {current.kind}</small></a>
+          <a href="#music" className="gx-dock-meta"><strong>{current.name}</strong><small>GEETQAR · {kindLabel(current.kind)}</small></a>
           <button className="gx-ctrl" onClick={() => step(-1)} aria-label="Previous"><SkipBack size={17} fill="currentColor" /></button>
           <button className="gx-ctrl gx-ctrl-main gx-ctrl-sm" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button>
           <button className="gx-ctrl" onClick={() => step(1)} aria-label="Next"><SkipForward size={17} fill="currentColor" /></button>

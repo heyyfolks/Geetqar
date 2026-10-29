@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Download, MessageCircle, Share2, Shuffle } from 'lucide-react'
 import { paintCover } from '@/components/site/cover-art'
 import type { Track } from '@/lib/site'
+import { useSite } from '@/components/site/site-context'
 
 type Format = 'post' | 'story'
 const SIZES: Record<Format, [number, number]> = { post: [1080, 1350], story: [1080, 1920] }
@@ -89,6 +90,7 @@ async function renderCard(canvas: HTMLCanvasElement, track: Track | null, lines:
 }
 
 export function LyricCards({ tracks }: { tracks: Track[] }) {
+  const { links } = useSite()
   // tracks with lyrics first, so the first card people see is a real lyric
   const ordered = useMemo(() => [...tracks].sort((a, b) => Number(b.lyrics.length > 0) - Number(a.lyrics.length > 0)), [tracks])
   const [trackId, setTrackId] = useState<string | null>(null)
@@ -194,7 +196,7 @@ export function LyricCards({ tracks }: { tracks: Track[] }) {
                   })}
                 </ul>
               ) : (
-                <p className="gx-hint">This track has no lyrics posted yet. Write your own line below.</p>
+                <p className="gx-hint">The lyrics for this track have not been added yet. Write your own line below, or pick a track that has lyrics.</p>
               )}
               <label className="gx-field">
                 <span>{track?.lyrics.length ? 'Or write your own line' : 'Your line'}</span>
@@ -219,7 +221,7 @@ export function LyricCards({ tracks }: { tracks: Track[] }) {
               <a className="gx-btn gx-btn-line" href={whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={15} /> WHATSAPP</a>
             </div>
             {error && <p className="gx-note" role="status">{error}</p>}
-            <p className="gx-hint">Tag <a href="https://www.instagram.com/geetqar/" target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>@geetqar</a> when you post it.</p>
+            <p className="gx-hint">Tag <a href={links.instagram} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>@geetqar</a> when you post it.</p>
           </div>
         </div>
       </div>

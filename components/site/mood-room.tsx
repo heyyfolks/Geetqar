@@ -1,32 +1,26 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Play } from 'lucide-react'
-import { MOODS, hourLabel, moodForHour, moodsOf, type MoodKey } from '@/lib/moods'
+import { useAmbience } from '@/components/site/ambience'
 import type { Track } from '@/lib/site'
+import { kindLabel } from '@/lib/site'
 
 export type MoodEvent = { label: string; ids: string[]; play: string }
 
 export function MoodRoom({ tracks }: { tracks: Track[] }) {
-  const [mood, setMood] = useState<MoodKey>('night')
-  const [clock, setClock] = useState('')
+  const amb = useAmbience()
   const [touched, setTouched] = useState(false)
 
-  // Start on the mood that fits the visitor's local time (after mount, so the server HTML stays identical).
-  useEffect(() => {
-    const now = new Date()
-    setClock(hourLabel(now))
-    setMood(moodForHour(now.getHours()))
-  }, [])
-
   const groups = useMemo(() => {
-    const map = new Map<MoodKey, Track[]>()
-    for (const track of tracks) for (const key of moodsOf(track)) map.set(key, [...(map.get(key) || []), track])
+    const map = new Map<string, Track[]>()
+    for (const track of tracks) for (const key of track.moods) map.set(key, [...(map.get(key) || []), track])
     return map
   }, [tracks])
 
-  const available = MOODS.filter((m) => (groups.get(m.key)?.length || 0) > 0)
-  const active = available.find((m) => m.key === mood) || available[0]
+  if (!amb) return null
+  const available = amb.moods.filter((m) => (groups.get(m.key)?.length || 0) > 0)
+  const active = available.find((m) => m.key === amb.mood.key) || available[0]
   if (!active) return null
   const list = (groups.get(active.key) || []).slice(0, 8)
 
@@ -40,12 +34,12 @@ export function MoodRoom({ tracks }: { tracks: Track[] }) {
       <div className="gx-aura" aria-hidden="true" />
       <div className="gx-wrap" style={{ position: 'relative' }}>
         <p className="gx-kicker">02 / Moods</p>
-        <h2 id="moods-title" className="gx-h2">{clock && !touched ? <>It is {clock}. <em>Pick a mood.</em></> : <>Pick a <em>mood.</em></>}</h2>
-        <p className="gx-lede">Choose how you feel and the player lines up the songs that match. The list sorts itself, so every new upload finds its mood.</p>
+        <h2 id="moods-title" className="gx-h2">{amb.clock && !touched ? <>It is {amb.clock}. <em>Pick a mood.</em></> : <>Pick a <em>mood.</em></>}</h2>
+        <p className="gx-lede">Choose how you feel. The whole site changes to match, and the player lines up the songs for that mood.</p>
 
         <div className="gx-chips gx-mood-chips" role="tablist" aria-label="Moods">
           {available.map((m) => (
-            <button key={m.key} role="tab" aria-selected={m.key === active.key} className={`gx-chip ${m.key === active.key ? 'on' : ''}`} onClick={() => { setMood(m.key); setTouched(true) }}>
+            <button key={m.key} role="tab" aria-selected={m.key === active.key} className={`gx-chip ${m.key === active.key ? 'on' : ''}`} onClick={() => { amb.setEnabled(true); amb.setMood(m.key); setTouched(true) }}>
               {m.label} <span aria-hidden="true">· {groups.get(m.key)?.length}</span>
             </button>
           ))}
@@ -62,7 +56,7 @@ export function MoodRoom({ tracks }: { tracks: Track[] }) {
                 <button onClick={() => play(t.id)} aria-label={`Play ${t.name}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={`https://i.ytimg.com/vi/${t.id}/mqdefault.jpg`} alt="" loading="lazy" width={96} height={54} />
-                  <span><strong>{t.name}</strong><small>{t.kind}</small></span>
+                  <span><strong>{t.name}</strong><small>{kindLabel(t.kind)}</small></span>
                   <Play size={16} fill="currentColor" />
                 </button>
               </li>
